@@ -6,12 +6,12 @@ using OrdinaryDiffEq
 """
 solves STG calcium model (Liu 1998)
 
-The log(3000.0/Ca) in the algorithm doesn't play nicely with Zygote. Don't know why.
+The log(3000.0/Ca) in the algorithm doesn't play nicely with Zygote. Don't know why. I've maxed it with zero to make it work.
 """
 
 
 
-function  create(input)
+function  CalciumNeuron(input)
     
     @parameters t
     @derivatives D'~t
@@ -94,22 +94,9 @@ function  create(input)
     ics = statevars .=> [-60,0.05,0,0,0,0,0,0,0,0,0,0,0]
 
     od = ODESystem(eqs, t, statevars, paramvars)
-    
-    return od, ics, ps
+    tspan = (0.,500.)
+    return od, ics, tspan, ps
 end
-
-tspan = (0.,500.)
-tsteps = 0.:10.:500.
-od,ic,ps = create(t->0)
-prob = ODEProblem(od,ic,tspan,ps; jac=true)
-
-# tstrct = logabs_transform(last.(ps))
-# newps, prob = transform_problem(prob, tstrct; pnames=first.(ps))
-
-nomsol = solve(prob, Tsit5(), p=last.(ps), saveat=tsteps)
-data = Array(nomsol)
-p0 = last.(ps)
-
 
 
 

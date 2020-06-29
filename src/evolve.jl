@@ -50,3 +50,36 @@ function evolveODE(du ,u , p, t, cost, ∇C, N, H, θ₀)
     return nothing
 end
 
+
+
+function evolve(p::P, solmethod=nothing; kwargs...) where P <: ODEProblem
+    ## only worry about positive span, or two sided. forget negative
+    
+    function merge_sols(furst, second)
+        t = cat(furst.t, second.t, dims=1)
+        u = cat(furst.u, second.u, dims=1)
+        sol = DiffEqBase.build_solution(p, solmethod, t, u)
+    end
+    
+    solmethod === nothing && (solmethod == Tsit5())
+    span = p.tspan
+    runn(p) = solve(p, solmethod(); kwargs...)
+    
+    if span[1] < 0.
+        spans = [(span[1], 0.), (0., span[2])]
+        pp = remake(p; tspan = spans[2])
+        np = remake(p; tspan = spans[1], u0 = -pp.u0)      
+        psol = Threads.@spawn runn(pp)
+        nsol = runn(np)
+        nsol.u[:] = nsol.u[end:-1:1]
+        wait(psol)
+        psol = psol.result
+        sol = merge_sols(nsol, psol)
+    else
+        sol = runn(p)
+    end
+    return MinimallyDisruptiveCurve(sol)
+end
+    
+    
+

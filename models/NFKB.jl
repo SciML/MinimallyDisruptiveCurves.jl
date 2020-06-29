@@ -1,6 +1,4 @@
-using ModelingToolkit
-using OrdinaryDiffEq
-using MinimallyDisruptiveCurves
+
 
 
 
@@ -11,7 +9,7 @@ Solved. The heaviside function was ill conditioned. Made it a sigmoid and everyt
 
 
 
-function  create(input)
+function  NFKBModel(input)
     
 @parameters t
 @derivatives D'~t
@@ -51,29 +49,29 @@ tspan = (0., 50000.)
 ic = statevars .=> temp
 
 od = ODESystem(eqs, t, statevars, paramvars)
-
+println("optional output map is [x[7], x[10] + x[13], x[9], x[1] + x[2] + x[3], x[2], x[12]]")
 return od, ic, tspan, ps
 end
 
-function output_map(x)
+function NFKB_output_map(x)
     return [x[7], x[10] + x[13], x[9], x[1] + x[2] + x[3], x[2], x[12]]
 end
-output_map(x,t,integrator) = output_map(x)
+NFKB_output_map(x,t,integrator) = output_map(x)
 
 
-heaviside = soft_heaviside(0.01, 3600.)
-od0, ic0, tspan, ps0 = create(heaviside)
-prob = ODEProblem(od0, ic0, tspan, ps0)
-to_fix = ["c2c","c2","c2a","c3c", "c1c", "a2"]
-tstrct_fix = fix_params(last.(ps0), get_name_ids(ps0, to_fix))
-od2,ic2,ps2 = transform_problem(prob,tstrct_fix; unames = first.(ic0), pnames = first.(ps0))
-prob2 = ODEProblem(od2,ic2,tspan,ps2)
-tstrct_log = logabs_transform(last.(ps2))
-od3,ic3,ps3 = transform_problem(prob2,tstrct_log; unames = first.(ic2), pnames = first.(ps2))
+# heaviside = soft_heaviside(0.01, 3600.)
+# od0, ic0, tspan, ps0 = create(heaviside)
+# prob = ODEProblem(od0, ic0, tspan, ps0)
+# to_fix = ["c2c","c2","c2a","c3c", "c1c", "a2"]
+# tstrct_fix = fix_params(last.(ps0), get_name_ids(ps0, to_fix))
+# od2,ic2,ps2 = transform_problem(prob,tstrct_fix; unames = first.(ic0), pnames = first.(ps0))
+# prob2 = ODEProblem(od2,ic2,tspan,ps2)
+# tstrct_log = logabs_transform(last.(ps2))
+# od3,ic3,ps3 = transform_problem(prob2,tstrct_log; unames = first.(ic2), pnames = first.(ps2))
 
-od,ic,ps = od3,ic3,ps3
+# od,ic,ps = od3,ic3,ps3
 
-create() = (od,ic, tspan, ps)
+# create() = (od,ic, tspan, ps)
 
 
 # sol = solve(prob, Tsit5())

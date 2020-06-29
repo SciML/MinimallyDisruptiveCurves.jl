@@ -8,8 +8,21 @@
 - [x] or just do multithreading!
 - [x] Injection loss
 - [ ] second order sensitivities for initial directions
-- [ ] make merge_esols function that merges the output of two oppositely oriented minimally disruptive curves. Only for plotting purposes
 
+
+
+### Plotting and evolve wrapper
+
+Idea is to wrap sol.t in a DataFrame! (the ! means solutions are not copied)
+Is there a way to do this withouit explicitly using DataFrames?
+Yes: we can use a NamedTuple. Then the user can do 
+> df = DataFrame(NamedTuple)
+
+But a plot recipe might be easier: then I can make a custom visualisation.
+
+
+
+evolve wrapper should multithread if it is a two sided curve. 
 
 
 

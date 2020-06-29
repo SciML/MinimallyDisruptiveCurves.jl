@@ -1,25 +1,20 @@
-using ModelingToolkit
-using OrdinaryDiffEq
 
 
-@inline function if_else(condition::Bool, @nospecialize(trueval), @nospecialize(falseval))
-           return ifelse(condition, trueval, falseval)
-end
+# @inline function if_else(condition::Bool, @nospecialize(trueval), @nospecialize(falseval))
+#            return ifelse(condition, trueval, falseval)
+# end
 
-ModelingToolkit.@register if_else(x, trueval, falseval)
-# This is needed to bring if_else into MTK's scope.
-@eval ModelingToolkit using ..Main: if_else
+# ModelingToolkit.@register if_else(x, trueval, falseval)
+# # This is needed to bring if_else into MTK's scope.
+# @eval ModelingToolkit using ..Main: if_else
 
-nasty(i) = if_else(i > 1, 1, 0)
-@variables t
-nasty(t)
-
-
-step(t) = min(t,1)
+# nasty(i) = if_else(i > 1, 1, 0)
+# @variables t
+# nasty(t)
 
 
 
-function create(input)
+function MassSpringModel(input)
     
   @parameters t
   @parameters k,c,m

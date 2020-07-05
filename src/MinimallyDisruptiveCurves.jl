@@ -17,10 +17,10 @@ include("initial_direction.jl")
 include("evolve_options.jl")
 include("evolve.jl")
 
-include("../models/circadian_model.jl")
-include("../models/NFKB.jl")
-include("../models/STG_Liu.jl")
-include("../models/forced_mass_spring.jl")
+# include("../models/circadian_model.jl")
+# include("../models/NFKB.jl")
+# include("../models/STG_Liu.jl")
+# include("../models/forced_mass_spring.jl")
 
 
 

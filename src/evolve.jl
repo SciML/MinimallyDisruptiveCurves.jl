@@ -23,10 +23,10 @@ normal solve kwargs:
 
 
 
-function evolve(c::curveProblem, solmethod=nothing; callbacks=nothing, kwargs...) 
+function evolve(c::curveProblem, solmethod=nothing; callback=nothing, kwargs...) 
     ## only worry about positive span, or two sided. forget negative
     p = make_ODEProblem(c)
-    callbacks = CallbackSet(TerminalCond(c.cost,c.momentum) )
+    callback = CallbackSet(callback, TerminalCond(c.cost,c.momentum) )
     println("lo")
     function merge_sols(furst, second)
         t = cat(furst.t, second.t, dims=1)
@@ -36,7 +36,7 @@ function evolve(c::curveProblem, solmethod=nothing; callbacks=nothing, kwargs...
 
     solmethod === nothing && (solmethod == Tsit5)
     span = p.tspan
-    runn(p) = solve(p, solmethod(); callbacks=callbacks, kwargs...)
+    runn(p) = solve(p, solmethod(); callback=callback, kwargs...)
     
     if span[1] < 0.
         spans = [(span[1], 0.), (0., span[2])]

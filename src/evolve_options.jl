@@ -3,10 +3,9 @@
 :res means |dHdu| > tol for momentum readjustment to occur
 :cost means C(θ) > tol for momentum readjustment to occur
 """
-function readjustment(cost, prob::ODEProblem, readjust; momentum = 10., condition = :res, tol = 1e-3)
+function readjustment(cost, θ₀, readjust; momentum = 10., condition = :res, tol = 1e-3)
     
-    N = length(prob.u0) ÷ 2
-    θ₀ = prob.u0[1:N]
+    N = length(θ₀)
     dθ = deepcopy(θ₀)
     if condition == :res
         cond = (u,t, integ) -> rescond(u,t,integ, 
@@ -154,3 +153,11 @@ function ParameterBounds(ids, lbs, ubs)
     return DiscreteCallback(condition,terminate!)
 end
 
+
+function TerminalCond(cost, H)
+    function condition(u,t,integrator)
+        N = length(u) ÷ 2
+        return (cost(u[1:N]) > H)
+    end
+    return DiscreteCallback(condition, terminate!)
+end

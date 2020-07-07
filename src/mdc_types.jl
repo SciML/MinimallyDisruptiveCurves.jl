@@ -1,8 +1,52 @@
 
+abstract type AbstractCurveSpec end
 abstract type AbstractCurve end
 
-mutable struct testt 
-    x::Union{Nothing, Int64}
+mutable struct curveProblem{F,P,D,M,S} <: AbstractCurveSpec
+    cost::F
+    p0::P
+    dp0::D
+    momentum::M
+    tspan::S
+end
+
+specify_curve(cost, p0, dp0, momentum, tspan) = curveProblem(cost, p0, dp0, momentum, tspan)
+
+specify_curve(;cost=nothing, p0=nothing, dp0=nothing,momentum=nothing,tspan=nothing) = curveProblem(cost,p0,dp0,momentum,tspan)
+
+
+function evolveODE(du ,u , p, t, cost, ∇C, N, H, θ₀)
+ 
+    θ = u[1:N] # current parameter vector
+    λ = u[N+1:end] #current costate vector
+
+    dist = sum((θ - θ₀).^2) # should = t actually? check and replace?
+    C = cost(θ, ∇C) #also updates ∇C as a mutable
+
+    μ2 = (C-H)/2
+    μ1 = dist > 1e-3 ?  (λ'*λ - 4*μ2^2 )/(λ'*(θ - θ₀)) : 0 
+        # if mu1 < -1e-4 warn of numerical issue
+        # if mu1 > 1e-3 and dist > 1e-3 then set mu1 = 0
+    du[1:N] = @. (-λ + μ1*(θ - θ₀))/(2*μ2) # ie dθ
+    du[1:N] /= (sqrt(sum((du[1:N]).^2)))
+    damping_constant = (λ'*du[1:N])/(H-C)  #theoretically = 1 but not numerically
+    du[N+1:end] = @. (μ1*du[1:N] - ∇C)*damping_constant # ie dλ
+    res = λ  + 2*μ2*du[1:N]
+    # println("μ1K = $(μ1*du[1:N]'*(θ - θ₀))")
+    # println("resid is", norm(res))
+    # println(t)
+    # print_warnings(u,du,N)
+    return nothing
+end
+
+
+function make_ODEProblem(c::C) where C <: curveProblem
+    N = length(c.p0)
+    ∇C = copy(c.dp0)
+    λ0 = initial_costate(c.dp0, c.momentum, c.cost(c.p0))
+    u0 = cat(c.p0, λ0, dims=1)
+    f = (du,u,p,t) -> evolveODE(du,u,p,t, c.cost, ∇C, N, c.momentum, c.p0)
+    return ODEProblem(f, u0, c.tspan)
 end
 
 
@@ -62,7 +106,8 @@ end
 
 @recipe function f(mdc::MinimallyDisruptiveCurve; pnames = nothing, idxs=nothing, what = :trajectory)
     if idxs === nothing
-        idxs = biggest_movers(mdc, 5)
+        num = min(5, mdc.N)
+        idxs = biggest_movers(mdc, num)
     end
     # if !(names === nothing)
     #     labels --> names[idxs]

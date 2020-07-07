@@ -6,7 +6,7 @@ using RecipesBase
 
 
 # import ModelingToolkit: modelingtoolkitize
-
+include("evolveODEs.jl")
 include("mdc_types.jl")
 include("utilities/loss_algebra.jl")
 include("utilities/extra_loss_functions.jl")
@@ -24,10 +24,7 @@ include("evolve.jl")
 
 
 
-# extend the following base functions
-import Base: show
-
-export curveProblem, evolve, trajectory, costate_trajectory
+export curveProblem, specify_curve, evolve, trajectory, costate_trajectory
 
 export TransformationStructure, logabs_transform, transform_problem, only_free_params, fix_params, sum_losses, build_injection_loss, get_name_ids, soft_heaviside, biggest_movers, get_ids_names
 

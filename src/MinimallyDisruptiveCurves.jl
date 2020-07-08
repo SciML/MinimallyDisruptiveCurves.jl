@@ -26,7 +26,7 @@ export DiffCost, make_fd_differentiable
 
 export curveProblem, specify_curve, evolve, trajectory, costate_trajectory
 
-export TransformationStructure, logabs_transform, transform_problem, only_free_params, fix_params, transform_cost
+export TransformationStructure, logabs_transform, bias_transform, transform_problem, only_free_params, fix_params, transform_cost
 
 export sum_losses, build_injection_loss, get_name_ids, soft_heaviside, biggest_movers, get_ids_names
 

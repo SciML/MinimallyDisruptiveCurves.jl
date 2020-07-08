@@ -39,6 +39,25 @@ function fix_params(p0, indices)
 end
 
 
+function bias_transform(p0, indices, biases)
+    name = "bias indices $indices"
+    indices |> unique! |> sort!
+    not_indices = setdiff(collect(1:length(p0)), indices)
+    all_biases = ones(size(p0))
+    all_biases[indices] = biases
+    all_inv_biases = 1. ./all_biases
+    
+    function p_transform(p)
+        return  p.*all_biases
+    end
+
+    function inv_p_transform(p)
+        return p.*all_inv_biases
+    end
+
+    return TransformationStructure(name, p_transform, inv_p_transform)
+end
+
 function only_free_params(p0, indices)
     name = "only free indices are $indices"
     indices |> unique! |> sort!
@@ -68,7 +87,7 @@ function transform_cost(cost, p0, tr::TransformationStructure; unames=nothing, p
             orig_p = tr.inv_p_transform(p)
             orig_grad  = deepcopy(orig_p)
             val = cost(orig_p, orig_grad)
-            g[:] = jac(tr.inv_p_transform, p)*p0
+            g[:] = jac(tr.inv_p_transform, p)*orig_grad
         return val
     end
     return DiffCost(new_cost, new_cost2), newp0

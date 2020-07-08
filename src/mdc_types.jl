@@ -19,10 +19,8 @@ function evolveODE(du ,u , p, t, cost, ∇C, N, H, θ₀)
  
     θ = u[1:N] # current parameter vector
     λ = u[N+1:end] #current costate vector
-
     dist = sum((θ - θ₀).^2) # should = t actually? check and replace?
     C = cost(θ, ∇C) #also updates ∇C as a mutable
-
     μ2 = (C-H)/2
     μ1 = dist > 1e-3 ?  (λ'*λ - 4*μ2^2 )/(λ'*(θ - θ₀)) : 0 
         # if mu1 < -1e-4 warn of numerical issue
@@ -32,10 +30,6 @@ function evolveODE(du ,u , p, t, cost, ∇C, N, H, θ₀)
     damping_constant = (λ'*du[1:N])/(H-C)  #theoretically = 1 but not numerically
     du[N+1:end] = @. (μ1*du[1:N] - ∇C)*damping_constant # ie dλ
     res = λ  + 2*μ2*du[1:N]
-    # println("μ1K = $(μ1*du[1:N]'*(θ - θ₀))")
-    # println("resid is", norm(res))
-    # println(t)
-    # print_warnings(u,du,N)
     return nothing
 end
 
@@ -53,7 +47,7 @@ end
 mutable struct MinimallyDisruptiveCurve{S, F} <: AbstractCurve
     sol::S
     N::Int64
-    costf::F
+    cost::F
 end
 
 
@@ -95,11 +89,11 @@ distances(mdc::MinimallyDisruptiveCurve) = mdc.sol.t
 
 
 function cost_trajectory(mdc::MinimallyDisruptiveCurve, ts)
-    if mdc.costf === nothing
-        @warn "MinimallyDisruptiveCurve struct has no cost function. You need to run mdc = add_cost(mdc, costf)"
+    if mdc.cost === nothing
+        @warn "MinimallyDisruptiveCurve struct has no cost function. You need to run mdc = add_cost(mdc, cost)"
         return
     else
-        return [mdc.costf(el) for el in eachcol(mdc(ts)[:states])]
+        return [mdc.cost(el) for el in eachcol(mdc(ts)[:states])]
     end
 end
 

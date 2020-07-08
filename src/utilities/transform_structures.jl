@@ -6,7 +6,6 @@ struct TransformationStructure{T<:Function,U<:Function}
     inv_p_transform::U
 end
 
-
 function logabs_transform(p0)
     """
     flip the signs of negative parameters, and then do the transform p -> log(p)
@@ -48,7 +47,32 @@ function only_free_params(p0, indices)
 end
 
 
+function transform_cost(cost, p0, tr::TransformationStructure; unames=nothing, pnames=nothing)
+    
+    newp0 = tr.p_transform(p0)
+    # jac_tr_holder = zeros(length(p0), length(newp0))
 
+    # try 
+    #     ForwardDiff.jacobian(jac_tr_holder, tr.inv_p_transform, newp0)
+    #     jac = ForwardDiff.jacobian
+    # catch
+    #     jac = FiniteDiff.finite_difference_jacobian
+    # end
+    jac = ForwardDiff.jacobian
+
+    function new_cost(p)
+        return p |> tr.inv_p_transform |> cost
+    end
+
+    function new_cost2(p,g)           
+            orig_p = tr.inv_p_transform(p)
+            orig_grad  = deepcopy(orig_p)
+            val = cost(orig_p, orig_grad)
+            g[:] = jac(tr.inv_p_transform, p)*p0
+        return val
+    end
+    return DiffCost(new_cost, new_cost2), newp0
+end
 
 function transform_problem(prob::ODEProblem, tr::TransformationStructure; unames = nothing, pnames=nothing)
    

@@ -2,14 +2,21 @@
 Utilities to add cost functions together
 """
 
-struct DiffEqObjective{F,F2} <: Function
+struct DiffCost{F,F2} <: Function
   cost_function::F
   cost_function2::F2
 end
-(f::DiffEqObjective)(x) = f.cost_function(x)
-(f::DiffEqObjective)(x,y) = f.cost_function2(x,y)
+(f::DiffCost)(x) = f.cost_function(x)
+(f::DiffCost)(x,y) = f.cost_function2(x,y)
 
-
+function make_fd_differentiable(cost)
+    
+    function cost2(p,g)
+        FiniteDiff.finite_difference_gradient!(g, cost, p)
+        return cost(p)
+    end
+    return DiffCost(cost, cost2)
+end
 
 function sum_losses(lArray::Array{T,1}, p0) where T<:Function
     Threads.nthreads() == 1 && (@info "Note that restarting julia with multiple threads will increase performance of the generated loss function from sum_losses()")
@@ -42,6 +49,6 @@ function sum_losses(lArray::Array{T,1}, p0) where T<:Function
         g[:] = reduce(+, dummy_gs)
         return c
     end
-    return DiffEqObjective(cost1,cost2)
+    return DiffCost(cost1,cost2)
 end
 

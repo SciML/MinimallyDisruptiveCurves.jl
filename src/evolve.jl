@@ -27,7 +27,6 @@ function evolve(c::curveProblem, solmethod=nothing; callback=nothing, kwargs...)
     ## only worry about positive span, or two sided. forget negative
     p = make_ODEProblem(c)
     callback = CallbackSet(callback, TerminalCond(c.cost,c.momentum) )
-    println("lo")
     function merge_sols(furst, second)
         t = cat(furst.t, second.t, dims=1)
         u = cat(furst.u, second.u, dims=1)
@@ -51,7 +50,7 @@ function evolve(c::curveProblem, solmethod=nothing; callback=nothing, kwargs...)
     else
         sol = runn(p)
     end
-    return MinimallyDisruptiveCurve(sol)
+    return MinimallyDisruptiveCurve(sol, c.cost)
 end
     
     

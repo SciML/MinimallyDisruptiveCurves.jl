@@ -23,10 +23,16 @@ normal solve kwargs:
 
 
 
-function evolve(c::curveProblem, solmethod=nothing; callback=nothing, kwargs...) 
+function evolve(c::curveProblem, solmethod=nothing; callback=nothing, momentum_tol = 1e-3,kwargs...) 
     ## only worry about positive span, or two sided. forget negative
     p = make_ODEProblem(c)
-    callback = CallbackSet(callback, TerminalCond(c.cost,c.momentum) )
+    if isnan(momentum_tol) == false
+        momc = MomentumReadjustment(c.cost, c.p0; momentum = c.momentum, tol = momentum_tol)
+    else
+        momc = nothing
+    end
+        callback = CallbackSet(callback, TerminalCond(c.cost,c.momentum), momc)
+
     function merge_sols(furst, second)
         t = cat(furst.t, second.t, dims=1)
         u = cat(furst.u, second.u, dims=1)

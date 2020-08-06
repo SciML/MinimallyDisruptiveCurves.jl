@@ -21,7 +21,7 @@ include("evolve.jl")
 # include("../models/STG_Liu.jl")
 # include("../models/forced_mass_spring.jl")
 
-export DiffCost, make_fd_differentiable
+export DiffCost, make_fd_differentiable, l2_hessian
 
 export curveProblem, specify_curve, evolve, trajectory, costate_trajectory
 

@@ -148,8 +148,6 @@ function ParameterBounds(ids, lbs, ubs)
         any(tests .> ubs) && return true
         return false
     end
-
-
     return DiscreteCallback(condition,terminate!)
 end
 

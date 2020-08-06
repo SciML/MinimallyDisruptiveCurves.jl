@@ -122,7 +122,7 @@ end
             end
             title --> "change in parameters over minimally disruptive curve"
             xguide --> "distance"
-            yguide --> "change in parameters"
+            yguide --> "Δ parameters"
             distances(mdc), Δ(mdc)[idxs,:]'
         end
     end

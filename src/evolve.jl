@@ -1,25 +1,6 @@
 """
-Code for evolving a minimally disruptive curve
-
-Needs:
-momentum (= final cost)
-initial parameter
-initial direction
-normal solve kwargs:
-    maxiters
-    algorithm eg Tsit5()                
+Code for evolving a minimally disruptive curve                
 """
-
-# function specify_curve(cost, θ₀, dθ₀; momentum=10., span=(-3.,3.)) 
-#     N = length(θ₀)
-#     ∇C = copy(dθ₀) # pre-assignment for mutation
-#     λ₀ = initial_costate(dθ₀, momentum, cost(θ₀))
-#     u₀ = cat(θ₀,λ₀,dims=1)
-#     f = (du,u,p,t) -> evolveODE(du,u,p,t, cost, ∇C, N, momentum, θ₀)
-#     ode = ODEProblem(f, u₀, span)
-#    return curveProblem(ode, cost, )
-# end
-
 
 
 """
@@ -69,7 +50,3 @@ function evolve(c::curveProblem, solmethod=nothing; callback=nothing, momentum_t
     end
     return MinimallyDisruptiveCurve(sol, c.cost)
 end
-    
-    
-
-MinimallyDisruptiveCurve

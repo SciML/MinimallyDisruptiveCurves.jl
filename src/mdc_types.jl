@@ -2,6 +2,11 @@
 abstract type AbstractCurveSpec end
 abstract type AbstractCurve end
 
+"""
+    mutable struct curveProblem{F,P,D,M,S} <: AbstractCurveSpec 
+holds all information required to generate ODEProblem for minimally disruptive curve
+holds: cost, p0, dp0, momentum, tspan
+"""
 mutable struct curveProblem{F,P,D,M,S} <: AbstractCurveSpec
     cost::F
     p0::P
@@ -10,13 +15,20 @@ mutable struct curveProblem{F,P,D,M,S} <: AbstractCurveSpec
     tspan::S
 end
 
+"""
+    specify_curve(cost, p0, dp0, momentum, tspan)
+    can also enter arguments as kwargs
+"""
 specify_curve(cost, p0, dp0, momentum, tspan) = curveProblem(cost, p0, dp0, momentum, tspan)
-
 specify_curve(;cost=nothing, p0=nothing, dp0=nothing,momentum=nothing,tspan=nothing) = curveProblem(cost,p0,dp0,momentum,tspan)
 
 
+
+"""
+    function evolveODE(du ,u , p, t, cost, ∇C, N, H, θ₀)
+runs the core ODE for evolving a minimally disruptive curve
+"""
 function evolveODE(du ,u , p, t, cost, ∇C, N, H, θ₀)
- 
     θ = u[1:N] # current parameter vector
     λ = u[N+1:end] #current costate vector
     dist = sum((θ - θ₀).^2) # should = t actually? check and replace?
@@ -33,7 +45,10 @@ function evolveODE(du ,u , p, t, cost, ∇C, N, H, θ₀)
     return nothing
 end
 
-
+"""
+    function make_ODEProblem(c::C) where C <: curveProblem
+makes an ::ODEProblem out of the information given in c::C
+"""
 function make_ODEProblem(c::C) where C <: curveProblem
     N = length(c.p0)
     ∇C = copy(c.dp0)
@@ -43,7 +58,12 @@ function make_ODEProblem(c::C) where C <: curveProblem
     return ODEProblem(f, u0, c.tspan)
 end
 
-
+"""
+    mutable struct MinimallyDisruptiveCurve{S, F} <: AbstractCurve
+holds solution for minimally disruptive curve. 
+fields: sol, N, cost
+sol is a conventional ODESolution structure
+"""
 mutable struct MinimallyDisruptiveCurve{S, F} <: AbstractCurve
     sol::S
     N::Int64
@@ -51,17 +71,27 @@ mutable struct MinimallyDisruptiveCurve{S, F} <: AbstractCurve
 end
 
 
-
+"""
+    function MinimallyDisruptiveCurve(sol, costf=nothing)
+returns an mdc::MinimallyDisruptiveCurve out of a sol::ODESolution
+"""
 function MinimallyDisruptiveCurve(sol, costf=nothing)
     N = length(sol.prob.u0) ÷ 2
     return MinimallyDisruptiveCurve(sol, N, costf)    
 end
 
-
+"""
+    function (mdc::MinimallyDisruptiveCurve)(t::N) where N <: Number
+returns array view of states and costates of curve at distance t
+"""
 function (mdc::MinimallyDisruptiveCurve)(t::N) where N <: Number
     return (states = (@view mdc.sol(t)[1:mdc.N]), costates = (@view mdc.sol(t)[mdc.N+1:end]))
 end
 
+"""
+    function (mdc::MinimallyDisruptiveCurve)(ts::A) where A <: Array
+returns array of states and costates of curve at distances t
+"""
 function (mdc::MinimallyDisruptiveCurve)(ts::A) where A <: Array
     states_ = Array{Float64,2}(undef, mdc.N, length(ts))
     costates_ = Array{Float64,2}(undef, mdc.N, length(ts))
@@ -73,10 +103,6 @@ function (mdc::MinimallyDisruptiveCurve)(ts::A) where A <: Array
 end
 
 
-function add_cost(mdc::MinimallyDisruptiveCurve, costf)
-    return MinimallyDisruptiveCurve(mdc.sol, mdc.N, costf)
-end
-
 trajectory(mdc::MinimallyDisruptiveCurve) = Array(mdc.sol)[1:mdc.N, :]
 trajectory(mdc::MinimallyDisruptiveCurve, ts) = mdc(ts)[:states]
 
@@ -87,7 +113,10 @@ distances(mdc::MinimallyDisruptiveCurve) = mdc.sol.t
 Δ(mdc::MinimallyDisruptiveCurve) = trajectory(mdc) .- mdc(0.)[:states]
 Δ(mdc::MinimallyDisruptiveCurve, ts) = mdc(ts)[:states] .- mdc(0.)[:states]
 
-
+"""
+    cost_trajectory(mdc::MinimallyDisruptiveCurve, ts)
+calculates cost on mdc curve at each point in the array/range ts
+"""
 function cost_trajectory(mdc::MinimallyDisruptiveCurve, ts)
     if mdc.cost === nothing
         @warn "MinimallyDisruptiveCurve struct has no cost function. You need to run mdc = add_cost(mdc, cost)"
@@ -97,7 +126,12 @@ function cost_trajectory(mdc::MinimallyDisruptiveCurve, ts)
     end
 end
 
-
+"""
+plot recipe for ::MinimallyDisruptiveCurve
+kwargs: pnames are array of parameter names
+idxs: are parameter indices to plot
+what ∈ (:trajectory, :final_changes) determines the plot type
+"""
 @recipe function f(mdc::MinimallyDisruptiveCurve; pnames = nothing, idxs=nothing, what = :trajectory)
     if idxs === nothing
         num = min(5, mdc.N)
@@ -143,7 +177,4 @@ end
             end
         end
     end
-
-
- 
 end

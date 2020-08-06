@@ -3,7 +3,11 @@ The two stage method in DiffEqParamEstim is great, but it employs (intelligent) 
 """
 
 
+"""
+For a prob::ODEProblem, with nominal parameters p0, creates a cost function C(p) 
 
+C(p) is the two stage method (collocation) cost associated with  remake(prob::ODEProblem; p=p), described in the DiffEqParamEstim.jl docs. In this case, the 'data' is solve(prob).
+"""
 function build_injection_loss(prob::ODEProblem, solmethod::T, tpoints) where T <: DiffEqBase.AbstractODEAlgorithm
     pdim = length(prob.u0)
     nom_sol = Array(solve(prob, solmethod, saveat=tpoints))

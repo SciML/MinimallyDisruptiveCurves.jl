@@ -1,14 +1,5 @@
 """
-functionality for working out an initial direction, given an abstract loss objective
-
-do we have to finite difference the hessian, or can we do a trick?
-
-Note that we have a function loss(sol)
-Now let's assume loss is zero at IC. then dLdsol = 0.
-    So d2Lp = dLsol d2soldp + dsoldp d2ldsol dsoldp
-    and the first term disappears.
-
-But finite difference is much more robust and easier.
+f unctionality for working out an initial direction, given an abstract loss objective
 """
 
 """
@@ -24,10 +15,11 @@ function initial_costate(dθ₀, H, C₀)
 end
 
 
-# """
-#     get minimally disruptive directions according to L2 loss under the assumption that loss(θ₀) = 0. The Hessian then only requires first derivatives, so is generically tractable. use the experimantal function second_order_sensitivitiesusing
-# """
-
+"""
+    l2_hessian(nom_sol)
+gets hessian according to L2 loss under the assumption that loss(θ₀) = 0. nom_sol is the solution of the nominal ODEProblem. 
+The Hessian then only requires first derivatives: it is sum_ij dyi/dθ * dyj/dtheta
+"""
 function l2_hessian(nom_sol)
     prob = nom_sol.prob
     function pToL2(p)

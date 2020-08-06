@@ -1,5 +1,6 @@
 """
-    condition = :res or :cost 
+    readjustment(cost, θ₀, readjust; momentum = 10., condition = :res, tol = 1e-3)
+condition = :res or :cost 
 :res means |dHdu| > tol for momentum readjustment to occur
 :cost means C(θ) > tol for momentum readjustment to occur
 """
@@ -26,7 +27,6 @@ function readjustment(cost, θ₀, readjust; momentum = 10., condition = :res, t
 end
 
 MomentumReadjustment(cost, prob; kwargs...) = readjustment(cost, prob, :momentum; kwargs...)
-
 StateReadjustment(cost, prob; kwargs...) = readjustment(cost, prob, :state; kwargs...)
 
 
@@ -44,6 +44,13 @@ function rescond(u, t, integrator, H, cost, θ₀, dθ, tol)
     end
 end
 
+
+"""
+    calculate_dHdu_residual(u,t,H,cost, θ₀, dθ)
+u = cat(state, costate)
+t = time (curve distance)
+dθ = proposed d/dt(state)
+"""
 function calculate_dHdu_residual(u,t,H,cost, θ₀, dθ)
     N = length(u) ÷ 2
     θ = u[1:N] # current parameter vector
@@ -119,6 +126,10 @@ function reset_state!(integ, N, H, cost, dθ, θ₀)
     return integ
 end
 
+"""
+    VerboseOutput(level=:low, times = 0:0.1:1.)
+    Callback to give online info on how the solution is going, as the MDCurve evolves. activates at curve distances specified by times
+"""
 function VerboseOutput(level=:low, times = 0:0.1:1.)
     
     function affect!(integ)

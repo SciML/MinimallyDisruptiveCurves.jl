@@ -22,7 +22,11 @@ normal solve kwargs:
 
 
 
-
+"""
+    evolve(c::curveProblem, solmethod=nothing; callback=nothing, momentum_tol = 1e-3,kwargs...)
+Evolves a minimally disruptive curve, with curve parameters specified by curveProblem. Uses DifferentialEquations.solve() to run the ODE.
+As well as MinimallyDisruptiveCurves.jl callbacks, you can use any DifferentialEquations.jl callbacks compatible with DifferentialEquations.solve(). 
+"""
 function evolve(c::curveProblem, solmethod=nothing; callback=nothing, momentum_tol = 1e-3,kwargs...) 
     ## only worry about positive span, or two sided. forget negative
     p = make_ODEProblem(c)
@@ -41,15 +45,22 @@ function evolve(c::curveProblem, solmethod=nothing; callback=nothing, momentum_t
 
     solmethod === nothing && (solmethod == Tsit5)
     span = p.tspan
-    runn(p) = solve(p, solmethod(); callback=callback, kwargs...)
+    runn(x) = solve(x, solmethod(); callback=callback, kwargs...)
     
     if span[1] < 0.
-        spans = [(span[1], 0.), (0., span[2])]
-        pp = remake(p; tspan = spans[2])
-        np = remake(p; tspan = spans[1], u0 = -pp.u0)      
+        spans = [(0., -span[1]), (0., span[2])]
+        cplus = c
+        cplus.tspan = spans[2]
+        pp = make_ODEProblem(cplus)
+        
+        cminus = c
+        cminus.tspan = spans[1]
+        cminus.dp0 = -cplus.dp0
+        np = make_ODEProblem(cminus)     
         psol = Threads.@spawn runn(pp)
         nsol = runn(np)
         nsol.u[:] = nsol.u[end:-1:1]
+        nsol.t[:] = -nsol.t[end:-1:1]
         wait(psol)
         psol = psol.result
         sol = merge_sols(nsol, psol)
@@ -61,3 +72,4 @@ end
     
     
 
+MinimallyDisruptiveCurve

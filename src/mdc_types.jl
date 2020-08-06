@@ -173,6 +173,7 @@ what ∈ (:trajectory, :final_changes) determines the plot type
         if tfirst < 0.
             @series begin
                 label --> "t=$tfirst"
+                seriestype := :bar
                 Δ(mdc, tfirst)[idxs]
             end
         end

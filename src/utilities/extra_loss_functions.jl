@@ -30,5 +30,5 @@ function build_injection_loss(prob::ODEProblem, solmethod::T, tpoints) where T <
         g[:] = ForwardDiff.gradient(cost, p)
         return cost(p)
     end
-    return DiffEqObjective(cost, cost2)
+    return DiffCost(cost, cost2)
 end

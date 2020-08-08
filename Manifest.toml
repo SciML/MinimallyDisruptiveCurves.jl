@@ -309,9 +309,9 @@ version = "0.2.2"
 
 [[NLSolversBase]]
 deps = ["DiffResults", "Distributed", "FiniteDiff", "ForwardDiff"]
-git-tree-sha1 = "7c4e66c47848562003250f28b579c584e55becc0"
+git-tree-sha1 = "ae1cbe7f1de1c443f44a5a3404140f11fe0d2610"
 uuid = "d41bc354-129a-5804-8e4c-c37616107c6c"
-version = "7.6.1"
+version = "7.6.2"
 
 [[NLsolve]]
 deps = ["Distances", "LineSearches", "LinearAlgebra", "NLSolversBase", "Printf", "Reexport"]
@@ -443,9 +443,9 @@ uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 
 [[SIMDPirates]]
 deps = ["VectorizationBase"]
-git-tree-sha1 = "19880eef12759d7d049516fcb11f1ed8440963d6"
+git-tree-sha1 = "884df77ee290b45bcf9d2edcdb186afaf1281c39"
 uuid = "21efa798-c60a-11e8-04d3-e1a92915a26a"
-version = "0.8.21"
+version = "0.8.23"
 
 [[SLEEFPirates]]
 deps = ["Libdl", "SIMDPirates", "VectorizationBase"]

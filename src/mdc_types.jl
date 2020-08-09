@@ -174,6 +174,8 @@ what ∈ (:trajectory, :final_changes) determines the plot type
             @series begin
                 label --> "t=$tfirst"
                 seriestype := :bar
+                xticks --> (1:5, reshape(pnames[idxs], 1, :))
+                xrotation --> 90
                 Δ(mdc, tfirst)[idxs]
             end
         end

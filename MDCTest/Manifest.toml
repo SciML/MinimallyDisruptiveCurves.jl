@@ -619,6 +619,14 @@ git-tree-sha1 = "c6190f9a7fc5d9d5915ab29f2134421b12d24a68"
 uuid = "46d2c3a1-f734-5fdb-9937-b9b9aeba4221"
 version = "0.2.2"
 
+[[MyModelMenagerie]]
+deps = ["ModelingToolkit", "OrdinaryDiffEq"]
+git-tree-sha1 = "ead92fdaeece1d9c5c2d39dc3e3ea368ca57766f"
+repo-rev = "master"
+repo-url = "https://github.com/Dhruva2/MyModelMenagerie.jl.git"
+uuid = "7c35333e-f05c-485e-b6f6-27244a3c2401"
+version = "0.1.0"
+
 [[NLSolversBase]]
 deps = ["DiffResults", "Distributed", "FiniteDiff", "ForwardDiff"]
 git-tree-sha1 = "7c4e66c47848562003250f28b579c584e55becc0"

@@ -99,6 +99,35 @@ function transform_cost(cost, p0, tr::TransformationStructure; unames=nothing, p
 end
 
 
+
+
+"""
+    de, ic2, ps2 = transform_ODESystem(od, ic, ps, tr)
+
+can make valid prob::ODEProblem(od,ic,tspan,ps)
+prob::ODEProblem(de,ic2,tspan,ps2)
+
+The problems are equivalent if last.(ps2) = tr.p_transform(last.(ps)).
+So reparameterises ingredients for an ODEProblem
+
+"""
+function transform_ODESystem(od, ic, ps, tr)
+    @parameters t
+    @derivatives D'~t
+    newp0 = tr.p_transform(last.(ps))
+    unames = first.(ic)
+    pnames = transform_names(first.(ps), tr)
+    params = reshape([Variable(Symbol(pnames[i]))()  for i in eachindex(newp0)], size(newp0))
+    vars = reshape([Variable(Symbol(unames[i]))(t)   for i in eachindex(last.(ic))], size(last.(ic)))
+    of = ODEFunction(od, eval_expression=false) # to solve world age issues
+    rhs = similar(vars, Any)
+    of(rhs, vars, tr.inv_p_transform(params), od.iv)
+    lhs = [D(el) for el in  vars]
+    de = ODESystem(lhs .~ rhs, t, vars, params)
+    return de, (vars .=> last.(ic)), (params .=> newp0)
+end
+
+
 """
 Reparameterises prob::ODEProblem via the transformation tr. so newprob.p = tr(p) is an equivalent ODEProblem to prob.p = p
 """
@@ -122,8 +151,7 @@ function transform_problem(prob::ODEProblem, tr::TransformationStructure; unames
     else
         rhs = prob.f(vars, tr.inv_p_transform(params), t)
     end
-
-    eqs = vcat([lhs[i] ~ rhs[i] for i in eachindex(prob.u0)]...)
+    eqs = lhs .~ rhs
     de = ODESystem(eqs,t,vec(vars),vec(params))
     return de, (vars .=> prob.u0), (params .=> newp0)
 end

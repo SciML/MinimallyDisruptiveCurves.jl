@@ -8,11 +8,15 @@ For a prob::ODEProblem, with nominal parameters p0, creates a cost function C(p)
 
 C(p) is the two stage method (collocation) cost associated with  remake(prob::ODEProblem; p=p), described in the DiffEqParamEstim.jl docs. In this case, the 'data' is solve(prob).
 """
-function build_injection_loss(prob::ODEProblem, solmethod::T, tpoints) where T <: DiffEqBase.AbstractODEAlgorithm
+function build_injection_loss(prob::ODEProblem, solmethod::T, tpoints, idxs=nothing) where T <: DiffEqBase.AbstractODEAlgorithm
     pdim = length(prob.u0)
     nom_sol = Array(solve(prob, solmethod, saveat=tpoints))
     n = length(tpoints)
     
+    if idxs===nothing
+        idxs=1:pdim
+    end
+
     function cost(p)
         pprob = remake(prob, p=p)
         du_nom = similar(prob.u0, promote_type(eltype(prob.u0), eltype(p)))
@@ -21,7 +25,7 @@ function build_injection_loss(prob::ODEProblem, solmethod::T, tpoints) where T <
         @inbounds for i = 1:n
             prob.f(du_nom,nom_sol[:,i], prob.p, tpoints[i])
             pprob.f(du_p, nom_sol[:,i], p, tpoints[i])
-            c += sum(abs2, du_nom .- du_p) 
+            c += sum(abs2, du_nom[idxs] .- du_p[idxs]) 
         end
         return c
     end

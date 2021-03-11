@@ -13,34 +13,7 @@ C(p) is the collocation cost associated with  pprob. Calculated by integrating t
  with output map g(x), this turns into 
 
  int_u  sum(dgdx(u)*pprob.f(u) - dgdx(u)*prob.f(u)).^2
-"""
-function build_injection_loss(prob::ODEProblem, solmethod::T, tpoints) where T <: DiffEqBase.AbstractODEAlgorithm
-    pdim = length(prob.u0)
-    nom_sol = Array(solve(prob, solmethod, saveat=tpoints))
-    n = length(tpoints)
 
-    function cost(p)
-        pprob = remake(prob, p=p)
-        du_nom = similar(prob.u0, promote_type(eltype(prob.u0), eltype(p)))
-        du_p = similar(pprob.u0, promote_type(eltype(pprob.u0), eltype(p)))
-        c = 0.
-        @inbounds for i = 1:n
-            prob.f(du_nom,nom_sol[:,i], prob.p, tpoints[i])
-            pprob.f(du_p, nom_sol[:,i], p, tpoints[i])
-            c += sum(abs2, du_nom .- du_p) 
-        end
-        return c
-    end
-
-    function cost2(p,g)
-        g[:] = ForwardDiff.gradient(cost, p)
-        return cost(p)
-    end
-    return DiffCost(cost, cost2)
-end
-
-"""
-alternative method with output_map g(x)
 
 """
 function build_injection_loss(prob::ODEProblem, solmethod::T, tpoints, output_map= x -> x) where T <: DiffEqBase.AbstractODEAlgorithm

@@ -1,6 +1,8 @@
 using MinimallyDisruptiveCurves
 using Test
 
-@testset "MinimallyDisruptiveCurves.jl" begin
-    # Write your own tests here.
-end
+
+@testset "mass_spring" begin
+            include("mass_spring.jl")
+        end
+    end

@@ -45,7 +45,6 @@ end
 returns TransformationStructure. params[indices] -> biases.*params[indices]
 """
 function bias_transform(p0, indices, biases)
-    name = "bias indices $indices"
     indices |> unique! |> sort!
     not_indices = setdiff(collect(1:length(p0)), indices)
     all_biases = ones(size(p0))
@@ -60,7 +59,7 @@ function bias_transform(p0, indices, biases)
         return p.*all_inv_biases
     end
 
-    return TransformationStructure(name, p_transform, inv_p_transform)
+    return TransformationStructure(nothing, p_transform, inv_p_transform)
 end
 
 """
@@ -109,17 +108,16 @@ end
 """
 function transform_ODESystem(od::ModelingToolkit.AbstractSystem, tr::TransformationStructure)
     t = ModelingToolkit.get_iv(od)
-    states = ModelingToolkit.get_states(od)
+    unames = ModelingToolkit.get_states(od)
     eqs = ModelingToolkit.get_eqs(od)
     ps = ModelingToolkit.get_ps(od)
     new_ps = transform_names(ps, tr) #modified names under transformation
-    name_tr = ps .=> new_ps
-    dntr = Dict(name_tr)
-    # change names of parameters in eqs
-    neweqs = [el.lhs ~ substitute(el.rhs, name_tr) for el in eqs]
-
-    transf = new_ps .=> tr.inv_p_transform(new_ps)
-    neweqs = [el.lhs ~ substitute(el.rhs, transf) for el in neweqs]   
+    new_p0 = tr.p_transform
+    of = ODEFunction(od, eval_expression=false) # to solve world age issues
+    rhs = similar(unames, Any)
+    of(rhs, unames, tr.inv_p_transform(new_ps), t) #in place modification of rhs
+    lhs = [el.lhs for el in  eqs]
+    
     _default_u0 = ModelingToolkit.get_default_u0(od)
     p_dict = ModelingToolkit.get_default_p(od)
 
@@ -130,7 +128,9 @@ function transform_ODESystem(od::ModelingToolkit.AbstractSystem, tr::Transformat
     else
         new_p_dict = Dict{Any, Any}()
     end 
-    return ODESystem(neweqs,t,states, new_ps, default_u0 = _default_u0, default_p = new_p_dict)
+
+    de = ODESystem(lhs .~ rhs, t, unames, new_ps,  default_u0 = _default_u0, default_p = new_p_dict)
+    return de # (vars .=> last.(ic)), (new_ps .=> newp0)
 end
 
 

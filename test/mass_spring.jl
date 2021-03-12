@@ -1,4 +1,4 @@
-using ModelingToolkit, OrdinaryDiffEq, DiffEqParamEstim, MinimallyDisruptiveCurves, ForwardDiff, LinearAlgebra
+using ModelingToolkit, OrdinaryDiffEq, DiffEqParamEstim, MinimallyDisruptiveCurves, ForwardDiff, LinearAlgebra, Test
   
   function make_model(input)
   @parameters t
@@ -26,6 +26,10 @@ od, ics, tspan, ps = make_model(t -> 0.)
 """
 take a log transform of the od parameter space in two ways: at the level of the ODESystem and the level of the ODEProblem
 """
+
+# to_fix = ["c2c","c2","c2a","c3c", "c1c", "a2"]
+# tstrct_fix = fix_params(last.(ps), get_name_ids(ps, to_fix))
+
 p0 = last.(ps)
 tr = logabs_transform(p0)
 log_od = transform_ODESystem(od, tr)
@@ -65,9 +69,10 @@ sol2 = solve(log_prob2, Tsit5())
 check if  log transforming the cost function on od gives the same result as an untransformed cost function on log_od
 """
 tsteps = tspan[1]:1.:tspan[end]
+nom_sol = solve(prob1, Tsit5())
 lossf(sol) = sum( [sum(abs2, el1 - el2) for (el1, el2) in zip(sol(tsteps).u, nom_sol(tsteps).u) ] )
 
-nom_cost = build_loss_objective(prob, Tsit5(), lossf; mpg_autodiff=true)
+nom_cost = build_loss_objective(prob1, Tsit5(), lossf; mpg_autodiff=true)
 
 log_cost = build_loss_objective(log_prob1, Tsit5(), lossf; mpg_autodiff=true)
 
@@ -97,15 +102,25 @@ cb = CallbackSet(cb1,cb2);
 
 
 """
-test MDC works and gives reasonable output
+ test MDC works and gives reasonable output
 """
+
 @test log_cost(mdc.sol[1][1:3]) < 1e-3
 @test log_cost(mdc.sol[end][1:3]) < 1e-3
 
 
 """
-test injection loss works OK
+ test injection loss works OK
 """
-l2 = build_injection_loss(prob, Tsit5(), tsteps)
+l2 = build_injection_loss(prob1, Tsit5(), tsteps)
 @test l2(p0, grad_holder) == 0
 @test norm(grad_holder) < 1e-5
+
+
+"""
+test fixing parameters (i.e. a transformation that changes the number of parameters) works ok
+"""
+to_fix = ["c"]
+trf = fix_params(last.(ps), get_name_ids(ps, to_fix))
+de = MinimallyDisruptiveCurves.transform_ODESystem(od,trf)
+@test length(ModelingToolkit.get_ps(de)) == 2

@@ -1,7 +1,7 @@
 name = "MinimallyDisruptiveCurves"
 uuid = "c6328df5-4af8-4637-a9e9-78ed74a2ae2b"
 authors = ["Dhruva Venkita Raman"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"

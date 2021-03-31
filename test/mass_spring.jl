@@ -1,6 +1,6 @@
 using ModelingToolkit, OrdinaryDiffEq, DiffEqParamEstim, MinimallyDisruptiveCurves, ForwardDiff, LinearAlgebra, Test
   
-  function make_model(input)
+function make_model(input)
   @parameters t
   @parameters k,c,m
   D = Differential(t)
@@ -13,8 +13,8 @@ using ModelingToolkit, OrdinaryDiffEq, DiffEqParamEstim, MinimallyDisruptiveCurv
   ps = [k,c,m] .=>  [2.,1.,4.] 
   ics = [pos, vel] .=> [1.,0.]
   od = ODESystem(eqs, t, first.(ics), first.(ps)
-                                 , default_u0 = Dict(first.(ics) .=> last.(ics))
-                                 , default_p = Dict(first.(ps) .=> last.(ps))
+                                 , defaults = merge(Dict(first.(ics) .=> last.(ics))
+                                 , Dict(first.(ps) .=> last.(ps)))
                                  )
   tspan = (0.,100.)
   # prob = ODEProblem(od, ics, tspan, ps)
@@ -35,10 +35,7 @@ tr = logabs_transform(p0)
 log_od = transform_ODESystem(od, tr)
 @test typeof(log_od) == ODESystem
 
-prob1 = ODEProblem(od, 
-                        collect(ModelingToolkit.get_default_u0(od)), 
-                        tspan, 
-                        collect(ModelingToolkit.get_default_p(od)))
+prob1 = ODEProblem(od, [], tspan, [])
 
 log_od2, log_ics2, log_ps2 = transform_problem(prob1, tr; unames = ModelingToolkit.get_states(od), pnames = ModelingToolkit.get_ps(od))
 
@@ -49,15 +46,8 @@ check if the two manners of transforming the ODE system give the same output
 
 @test repr.(ModelingToolkit.get_ps(log_od)) == repr.(ModelingToolkit.get_ps(log_od2))
 
-log_prob1 = ODEProblem(log_od, 
-        collect(ModelingToolkit.get_default_u0(log_od)), 
-        tspan, 
-        collect(ModelingToolkit.get_default_p(log_od)))
-
-log_prob2 = ODEProblem(log_od2, 
-        collect(ModelingToolkit.get_default_u0(log_od2)), 
-        tspan, 
-        collect(ModelingToolkit.get_default_p(log_od2)))
+log_prob1 = ODEProblem(log_od, [], tspan, [])
+log_prob2 = ODEProblem(log_od2, [], tspan, [])
 
 
 sol1 = solve(log_prob1, Tsit5())

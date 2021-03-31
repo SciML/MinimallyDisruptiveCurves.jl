@@ -118,18 +118,18 @@ function transform_ODESystem(od::ModelingToolkit.AbstractSystem, tr::Transformat
     of(rhs, unames, tr.inv_p_transform(new_ps), t) #in place modification of rhs
     lhs = [el.lhs for el in  eqs]
     
-    _default_u0 = ModelingToolkit.get_default_u0(od)
-    p_dict = ModelingToolkit.get_default_p(od)
+    _defaults = ModelingToolkit.get_defaults(od)
 
-    if length(p_dict) > 0        
-        p_collect = [el => p_dict[el] for el in ps] #in correct order
-        new_p_vals = tr.p_transform(last.(p_collect))
-        new_p_dict = Dict(new_ps .=> new_p_vals)
-    else
-        new_p_dict = Dict{Any, Any}()
-    end 
+    if length(_defaults) >  0       
+        p_collect = [el => _defaults[el] for el in ps] #in correct order
+        if length(p_collect) > 0
+            new_p_vals = tr.p_transform(last.(p_collect))
+            new_p_dict = Dict(new_ps .=> new_p_vals)
+            _defaults = merge(_defaults, new_p_dict)
+        end 
+    end
 
-    de = ODESystem(lhs .~ rhs, t, unames, new_ps,  default_u0 = _default_u0, default_p = new_p_dict)
+    de = ODESystem(lhs .~ rhs, t, unames, new_ps,  defaults = _defaults)
     return de # (vars .=> last.(ic)), (new_ps .=> newp0)
 end
 
@@ -156,7 +156,7 @@ function transform_problem(prob::ODEProblem, tr::TransformationStructure; unames
     else
         unames = ModelingToolkit.get_states(sys)
     end
-    named_sys = ODESystem(neweqs, independent_variable(sys), unames, pnames,  default_u0 = Dict(unames .=> prob.u0), default_p = Dict(pnames .=> prob.p))   
+    named_sys = ODESystem(neweqs, independent_variable(sys), unames, pnames,  defaults = merge(Dict(unames .=> prob.u0), Dict(pnames .=> prob.p)))   
     newp0 = tr.p_transform(prob.p)
     t_sys = transform_ODESystem(named_sys, tr)
     return t_sys, (ModelingToolkit.get_states(t_sys) .=> prob.u0),

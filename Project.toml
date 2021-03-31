@@ -16,25 +16,25 @@ RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
 SteadyStateDiffEq = "9672c7b4-1e72-59bd-8a11-6ac3964bc41f"
 
 [compat]
-julia = "1.5"
-DiffEqCallbacks = "2.16"
 DiffEqBase = "6.57"
+DiffEqCallbacks = "2.16"
 FiniteDiff = "2.8"
 ForwardDiff = "0.10"
 Latexify = "0.14"
 ModelingToolkit = "5.13"
-OrdinaryDiffEq = "5.52"
+OrdinaryDiffEq = "5.31"
 RecipesBase = "1.1"
 SteadyStateDiffEq = "1.6"
+julia = "1.5"
 
 [extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 DiffEqParamEstim = "1130ab10-4a5a-5621-a13d-e4788d82bd4c"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["Test", "DiffEqParamEstim", "ForwardDiff", "ModelingToolkit", "OrdinaryDiffEq", "SafeTestsets", "Symbolics"]

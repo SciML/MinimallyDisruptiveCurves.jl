@@ -156,7 +156,7 @@ function transform_problem(prob::ODEProblem, tr::TransformationStructure; unames
     else
         unames = ModelingToolkit.get_states(sys)
     end
-    named_sys = ODESystem(neweqs, get_iv(sys), unames, pnames,  defaults=merge(Dict(unames .=> prob.u0), Dict(pnames .=> prob.p)), name=nameof(sys))   
+    named_sys = ODESystem(neweqs, ModelingToolkit.get_iv(sys), unames, pnames,  defaults=merge(Dict(unames .=> prob.u0), Dict(pnames .=> prob.p)), name=nameof(sys))   
     newp0 = tr.p_transform(prob.p)
     t_sys = transform_ODESystem(named_sys, tr)
     return t_sys, (ModelingToolkit.get_states(t_sys) .=> prob.u0),

@@ -1,6 +1,6 @@
 
 
-struct TransformationStructure{T<:Function,U<:Function}
+struct TransformationStructure{T <: Function,U <: Function}
     name::Union{String,Nothing}
     p_transform::T
     inv_p_transform::U
@@ -14,9 +14,9 @@ function logabs_transform(p0)
     name = "logabs_"
     is_positive = convert.(Int64, p0 .>= 0)
     is_positive[is_positive .== 0] .= -1
-    pos(p) = p.* is_positive 
-    p_transform(p) = log.(p.*is_positive)
-    inv_p_transform(logp) = exp.(logp).*is_positive
+    pos(p) = p .* is_positive 
+    p_transform(p) = log.(p .* is_positive)
+    inv_p_transform(logp) = exp.(logp) .* is_positive
 
     return TransformationStructure(name, p_transform, inv_p_transform)
 end
@@ -49,14 +49,14 @@ function bias_transform(p0, indices, biases)
     not_indices = setdiff(collect(1:length(p0)), indices)
     all_biases = ones(size(p0))
     all_biases[indices] = biases
-    all_inv_biases = 1. ./all_biases
+    all_inv_biases = 1. ./ all_biases
     
     function p_transform(p)
-        return  p.*all_biases
+        return  p .* all_biases
     end
 
     function inv_p_transform(p)
-        return p.*all_inv_biases
+        return p .* all_inv_biases
     end
 
     return TransformationStructure(nothing, p_transform, inv_p_transform)
@@ -86,11 +86,11 @@ function transform_cost(cost, p0, tr::TransformationStructure; unames=nothing, p
         return p |> tr.inv_p_transform |> cost
     end
 
-    function new_cost2(p,g)           
-            orig_p = tr.inv_p_transform(p)
-            orig_grad  = deepcopy(orig_p)
-            val = cost(orig_p, orig_grad)
-            g[:] = jac(tr.inv_p_transform, p)*orig_grad
+    function new_cost2(p, g)           
+        orig_p = tr.inv_p_transform(p)
+        orig_grad  = deepcopy(orig_p)
+        val = cost(orig_p, orig_grad)
+        g[:] = jac(tr.inv_p_transform, p) * orig_grad
         return val
     end
     return DiffCost(new_cost, new_cost2), newp0
@@ -111,17 +111,17 @@ function transform_ODESystem(od::ModelingToolkit.AbstractSystem, tr::Transformat
     unames = ModelingToolkit.get_states(od)
     eqs = ModelingToolkit.get_eqs(od)
     ps = ModelingToolkit.get_ps(od)
-    new_ps = transform_names(ps, tr) #modified names under transformation
+    new_ps = transform_names(ps, tr) # modified names under transformation
     new_p0 = tr.p_transform
     of = ODEFunction(od, eval_expression=false) # to solve world age issues
     rhs = similar(unames, Any)
-    of(rhs, unames, tr.inv_p_transform(new_ps), t) #in place modification of rhs
+    of(rhs, unames, tr.inv_p_transform(new_ps), t) # in place modification of rhs
     lhs = [el.lhs for el in  eqs]
     
     _defaults = ModelingToolkit.get_defaults(od)
 
     if length(_defaults) >  0       
-        p_collect = [el => _defaults[el] for el in ps] #in correct order
+        p_collect = [el => _defaults[el] for el in ps] # in correct order
         if length(p_collect) > 0
             new_p_vals = tr.p_transform(last.(p_collect))
             new_p_dict = Dict(new_ps .=> new_p_vals)
@@ -129,7 +129,7 @@ function transform_ODESystem(od::ModelingToolkit.AbstractSystem, tr::Transformat
         end 
     end
 
-    de = ODESystem(lhs .~ rhs, t, unames, new_ps,  defaults = _defaults)
+    de = ODESystem(lhs .~ rhs, t, unames, new_ps,  defaults=_defaults, name=nameof(od))
     return de # (vars .=> last.(ic)), (new_ps .=> newp0)
 end
 
@@ -138,7 +138,7 @@ end
 Reparameterises prob::ODEProblem via the transformation tr. so newprob.p = tr(p) is an equivalent ODEProblem to prob.p = p
 """
 
-function transform_problem(prob::ODEProblem, tr::TransformationStructure; unames = nothing, pnames=nothing)
+function transform_problem(prob::ODEProblem, tr::TransformationStructure; unames=nothing, pnames=nothing)
     println(pnames)
     sys = modelingtoolkitize(prob)
     eqs = ModelingToolkit.get_eqs(sys)
@@ -156,7 +156,7 @@ function transform_problem(prob::ODEProblem, tr::TransformationStructure; unames
     else
         unames = ModelingToolkit.get_states(sys)
     end
-    named_sys = ODESystem(neweqs, independent_variable(sys), unames, pnames,  defaults = merge(Dict(unames .=> prob.u0), Dict(pnames .=> prob.p)))   
+    named_sys = ODESystem(neweqs, get_iv(sys), unames, pnames,  defaults=merge(Dict(unames .=> prob.u0), Dict(pnames .=> prob.p)), name=nameof(sys))   
     newp0 = tr.p_transform(prob.p)
     t_sys = transform_ODESystem(named_sys, tr)
     return t_sys, (ModelingToolkit.get_states(t_sys) .=> prob.u0),
@@ -176,7 +176,7 @@ function transform_names(nv, tr::TransformationStructure)
     if tr.name === nothing
         names = Symbol.(repr.(tr.p_transform(nv)))
     else
-         names = Symbol.(tr.name .* repr.(nv))
+        names = Symbol.(tr.name .* repr.(nv))
     end
     new_vars = [Num(Variable(el)) for el in names]
     return new_vars
@@ -189,7 +189,7 @@ ps is an array of names
 function get_name_ids(ps, names::Array{String,1})
     # can't do a single findall as this doesn't preserve ordering
     all_names = repr.(ps)
-    ids = [first(findall(x -> x == names[i], all_names)) for (i,el) in enumerate(names)]
+    ids = [first(findall(x -> x == names[i], all_names)) for (i, el) in enumerate(names)]
     return ids
 end
 

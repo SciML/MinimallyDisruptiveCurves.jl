@@ -1,24 +1,24 @@
 using ModelingToolkit, OrdinaryDiffEq, DiffEqParamEstim, MinimallyDisruptiveCurves, ForwardDiff, LinearAlgebra, Test
   
 function make_model(input)
-  @parameters t
-  @parameters k,c,m
-  D = Differential(t)
-  @variables pos(t) vel(t)
+    @parameters t
+    @parameters k, c, m
+    D = Differential(t)
+    @variables pos(t) vel(t)
 
-  eqs = [D(pos) ~ vel,
-        D(vel) ~ (-1/m)*(c*vel + k*pos - input(t))
+    eqs = [D(pos) ~ vel,
+        D(vel) ~ (-1 / m) * (c * vel + k * pos - input(t))
   ]
 
-  ps = [k,c,m] .=>  [2.,1.,4.] 
-  ics = [pos, vel] .=> [1.,0.]
-  od = ODESystem(eqs, t, first.(ics), first.(ps)
-                                 , defaults = merge(Dict(first.(ics) .=> last.(ics))
-                                 , Dict(first.(ps) .=> last.(ps)))
+    ps = [k,c,m] .=>  [2.,1.,4.] 
+    ics = [pos, vel] .=> [1.,0.]
+    od = ODESystem(eqs, t, first.(ics), first.(ps)
+                                 , defaults=merge(Dict(first.(ics) .=> last.(ics))
+                                 , Dict(first.(ps) .=> last.(ps))), name=:od
                                  )
-  tspan = (0.,100.)
+    tspan = (0., 100.)
   # prob = ODEProblem(od, ics, tspan, ps)
-  return od, ics, tspan, ps
+    return od, ics, tspan, ps
 end
 
 od, ics, tspan, ps = make_model(t -> 0.)
@@ -37,7 +37,7 @@ log_od = transform_ODESystem(od, tr)
 
 prob1 = ODEProblem(od, [], tspan, [])
 
-log_od2, log_ics2, log_ps2 = transform_problem(prob1, tr; unames = ModelingToolkit.get_states(od), pnames = ModelingToolkit.get_ps(od))
+log_od2, log_ics2, log_ps2 = transform_problem(prob1, tr; unames=ModelingToolkit.get_states(od), pnames=ModelingToolkit.get_ps(od))
 
 
 """
@@ -60,7 +60,7 @@ check if  log transforming the cost function on od gives the same result as an u
 """
 tsteps = tspan[1]:1.:tspan[end]
 nom_sol = solve(prob1, Tsit5())
-lossf(sol) = sum( [sum(abs2, el1 - el2) for (el1, el2) in zip(sol(tsteps).u, nom_sol(tsteps).u) ] )
+lossf(sol) = sum([sum(abs2, el1 - el2) for (el1, el2) in zip(sol(tsteps).u, nom_sol(tsteps).u) ])
 
 nom_cost = build_loss_objective(prob1, Tsit5(), lossf; mpg_autodiff=true)
 
@@ -74,7 +74,7 @@ tr_cost, newp0 = transform_cost(nom_cost, p0, tr)
 grad_holder = deepcopy(p0)
 for el in (log_cost, tr_cost)
     el(newp0, grad_holder)
-    @test norm(grad_holder) < 1e-3 #0 gradient at minimum
+    @test norm(grad_holder) < 1e-3 # 0 gradient at minimum
 end
 
 H0 = ForwardDiff.hessian(tr_cost, newp0)
@@ -87,7 +87,7 @@ eprob = specify_curve(log_cost, newp0, newdp0, mom, span);
 
 cb1 = ParameterBounds([1,3], [-10.,-10.], [10.,10.])
 cb2 = VerboseOutput(:low, 0.1:2.:10)
-cb = CallbackSet(cb1,cb2);
+cb = CallbackSet(cb1, cb2);
 @time mdc = evolve(eprob, Tsit5; callback=cb);
 
 
@@ -112,5 +112,5 @@ test fixing parameters (i.e. a transformation that changes the number of paramet
 """
 to_fix = ["c"]
 trf = fix_params(last.(ps), get_name_ids(ps, to_fix))
-de = MinimallyDisruptiveCurves.transform_ODESystem(od,trf)
+de = MinimallyDisruptiveCurves.transform_ODESystem(od, trf)
 @test length(ModelingToolkit.get_ps(de)) == 2

@@ -7,6 +7,8 @@ using RecipesBase
 
 # import ModelingToolkit: modelingtoolkitize
 include("mdc_types.jl")
+include("problem_types.jl")
+include("curve_types.jl")
 include("utilities/loss_algebra.jl")
 include("utilities/extra_loss_functions.jl")
 include("utilities/helper_functions.jl")

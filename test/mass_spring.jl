@@ -14,7 +14,7 @@ function make_model(input)
     ics = [pos, vel] .=> [1.,0.]
     od = ODESystem(eqs, t, first.(ics), first.(ps)
                                  , defaults=merge(Dict(first.(ics) .=> last.(ics))
-                                 , Dict(first.(ps) .=> last.(ps))), name=:od
+                                 , Dict(first.(ps) .=> last.(ps))), name=:mass_spring
                                  )
     tspan = (0., 100.)
   # prob = ODEProblem(od, ics, tspan, ps)

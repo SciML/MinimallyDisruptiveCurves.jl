@@ -8,15 +8,15 @@ Code for evolving a minimally disruptive curve
 Evolves a minimally disruptive curve, with curve parameters specified by curveProblem. Uses DifferentialEquations.solve() to run the ODE.
 As well as MinimallyDisruptiveCurves.jl callbacks, you can use any DifferentialEquations.jl callbacks compatible with DifferentialEquations.solve(). 
 """
-function evolve(c::curveProblem, solmethod=nothing; callback=nothing, momentum_tol = 1e-3,kwargs...) 
+function evolve(c::curveProblem, solmethod=nothing; callback=nothing, momentum_tol=1e-3,kwargs...) 
     ## only worry about positive span, or two sided. forget negative
     p = make_ODEProblem(c)
     if isnan(momentum_tol) == false
-        momc = MomentumReadjustment(c.cost, c.p0; momentum = c.momentum, tol = momentum_tol)
+        momc = MomentumReadjustment(c.cost, c.p0; momentum=c.momentum, tol=momentum_tol)
     else
         momc = nothing
     end
-        callback = CallbackSet(callback, TerminalCond(c.cost,c.momentum), momc)
+    callback = CallbackSet(callback, TerminalCond(c.cost, c.momentum), momc)
 
     function merge_sols(furst, second)
         t = cat(furst.t, second.t, dims=1)
@@ -49,4 +49,10 @@ function evolve(c::curveProblem, solmethod=nothing; callback=nothing, momentum_t
         sol = runn(p)
     end
     return MinimallyDisruptiveCurve(sol, c.cost)
+end
+
+function evolve(c::CurveProblem, solmethod=nothing; callbacks=nothing, momentum_tol=1e-3,kwargs...) 
+    probs = c(span)
+    callbacks = build_callbacks(c, callbacks, momentum_tol, kwargs...)
+    
 end

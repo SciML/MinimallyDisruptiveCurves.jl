@@ -1,9 +1,4 @@
-abstract type Readjustment end
-struct Momentum end <: Readjustment
-struct State end <: Readjustment
 
-abstract type ReadjustmentCondition end
-struct Residual end <: ReadjustmentCondition
 
 """
     readjustment(cost, θ₀, readjust; momentum = 10., condition = :res, tol = 1e-3)
@@ -12,7 +7,7 @@ condition = :res or :cost
 :cost means C(θ) > tol for momentum readjustment to occur
 """
 function readjustment(cost, θ₀, readjust; momentum=10., condition=:res, tol=1e-3)
-    
+    # momentum = momentum of CurveProblem
     N = length(θ₀)
     dθ = deepcopy(θ₀)
     if condition == :res
@@ -36,7 +31,7 @@ end
 MomentumReadjustment(cost, prob; kwargs...) = readjustment(cost, prob, :momentum; kwargs...)
 StateReadjustment(cost, prob; kwargs...) = readjustment(cost, prob, :state; kwargs...)
 
-MomentumReadjustment(c::MDCProblem)
+
 
 
 """
@@ -179,9 +174,8 @@ function TerminalCond(cost, H)
     return DiscreteCallback(condition, terminate!)
 end
 
-    function build_callbacks(c, callbacks, momentum_tol, kwargs...)
+function build_callbacks(c::MDCProblem, callbacks, momentum_tol, kwargs...)
     momc = isnan(momentum_tol) ? nothing : 
     MomentumReadjustment(c.cost, c.p0; momentum=c.momentum, tol=momentum_tol)
-
-    return CallbackSet(callbacks, TerminalCond(c.cost, c.momentum), momc)
+    return CallbackSet(callbacks, TerminalCond(c))
 end

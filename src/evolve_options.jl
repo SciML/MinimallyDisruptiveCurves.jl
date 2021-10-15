@@ -125,7 +125,7 @@ function reset_state!(integ, N, H, cost, dθ, θ₀)
     C0 = cost(θ₀)
     @info "cost after readjustment is $(opt.minimum). cost before readjustment was $C0"
     (opt.ls_success == true) && (integ.u[1:N] = opt.minimizer[1:N])
-reset_costate!(integ, N, H, cost, dθ, θ₀)
+    integ = reset_costate!(integ, N, H, cost, dθ, θ₀)
     return integ
 end
 
@@ -175,7 +175,5 @@ function TerminalCond(cost, H)
 end
 
 function build_callbacks(c::MDCProblem, callbacks, momentum_tol, kwargs...)
-    momc = isnan(momentum_tol) ? nothing : 
-    MomentumReadjustment(c.cost, c.p0; momentum=c.momentum, tol=momentum_tol)
-    return CallbackSet(callbacks, TerminalCond(c))
+    return CallbackSet(callbacks, MomentumReadjustment(c, momentum_tol; kwargs...), TerminalCond(c))
 end

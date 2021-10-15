@@ -2,7 +2,7 @@ module MinimallyDisruptiveCurves
 
 using DiffEqBase, DiffEqCallbacks, OrdinaryDiffEq
 using FiniteDiff, LinearAlgebra, ModelingToolkit, ForwardDiff
-using RecipesBase
+using RecipesBase, ThreadsX
 
 
 # import ModelingToolkit: modelingtoolkitize
@@ -25,7 +25,7 @@ include("evolve.jl")
 
 export DiffCost, make_fd_differentiable, l2_hessian
 
-export curveProblem, specify_curve, evolve, trajectory, costate_trajectory
+export curveProblem, specify_curve, evolve, trajectory, costate_trajectory, MDCProblem
 
 export TransformationStructure, logabs_transform, bias_transform, transform_problem, transform_ODESystem, only_free_params, fix_params, transform_cost
 

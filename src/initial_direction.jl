@@ -14,16 +14,7 @@ function initial_costate(dθ₀, H, C₀)
     return λ₀
 end
 
-function initial_costate(c::MDCProblem)
-    μ₂ = (-c.momentum + c.cost(c.p0)) / 2.
-    λ₀ = -2. * μ₂ * c.dp0 
-    return λ₀
-end
 
-function initial_conditions(c::MDCProblem)
-    λ₀ = initial_costate(c)
-    return cat(c.p0, λ0, dims=1)
-end
 
 """
     l2_hessian(nom_sol)

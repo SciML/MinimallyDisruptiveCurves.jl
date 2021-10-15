@@ -51,8 +51,31 @@ function evolve(c::curveProblem, solmethod=nothing; callback=nothing, momentum_t
     return MinimallyDisruptiveCurve(sol, c.cost)
 end
 
-function evolve(c::CurveProblem, solmethod=nothing; callbacks=nothing, momentum_tol=1e-3,kwargs...) 
-    probs = c(span)
-    callbacks = build_callbacks(c, callbacks, momentum_tol, kwargs...)
+
+function evolve(c::CurveProblem, solmethod=Tsit5; callbacks=nothing, momentum_tol=1e-3,kwargs...) 
     
+    function merge_sols(neg, pos, p)
+        t = cat(neg.t, pos.t, dims=1)
+        u = cat(neg.u, pos.u, dims=1)
+        return DiffEqBase.build_solution(p, solmethod, t, u)
+    end
+    
+    probs = c()
+    callbacks = build_callbacks(c, callbacks, momentum_tol, kwargs...)
+    # sols = map(probs) do prob
+    #     solve(prob, solmethod(); callback=callbacks, kwargs...)
+    # end
+    (length(probs) == 1) && (sols = solve(prob, solmethod(); callback=callbacks, kwargs...))
+
+    if length(probs) == 2
+        psol = Threads.@spawn solve(probs[2], solmethod(); callback=callbacks, kwargs...)
+        nsol = solve(probs[1], solmethod(); callback=callbacks, kwargs...)
+        nsol.u[:] = nsol.u[end:-1:1]
+        nsol.t[:] = -nsol.t[end:-1:1]
+        wait(psol)
+        psol = psol.result
+        sols = (merge_sols(nsol, psol, probs[end]),)
+    end
+    return sols
+    # return map(sol -> MinimallyDisruptiveCurve(sol, c.cost), sols)
 end

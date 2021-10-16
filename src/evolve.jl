@@ -17,7 +17,8 @@ function evolve(c::curveProblem, solmethod=nothing; callback=nothing, momentum_t
         momc = nothing
     end
     callback = CallbackSet(callback, TerminalCond(c.cost, c.momentum), momc)
-
+    # println(momentum_tol, "for old")
+    # println("terminal condition momentum", c.momentum)
     function merge_sols(furst, second)
         t = cat(furst.t, second.t, dims=1)
         u = cat(furst.u, second.u, dims=1)
@@ -33,11 +34,10 @@ function evolve(c::curveProblem, solmethod=nothing; callback=nothing, momentum_t
         cplus = c
         cplus.tspan = spans[2]
         pp = make_ODEProblem(cplus)
-        
         cminus = c
         cminus.tspan = spans[1]
         cminus.dp0 = -cplus.dp0
-        np = make_ODEProblem(cminus)     
+        np = make_ODEProblem(cminus)    
         psol = Threads.@spawn runn(pp)
         nsol = runn(np)
         nsol.u[:] = nsol.u[end:-1:1]
@@ -62,20 +62,26 @@ function evolve(c::CurveProblem, solmethod=Tsit5; callbacks=nothing, momentum_to
     
     probs = c()
     callbacks = build_callbacks(c, callbacks, momentum_tol, kwargs...)
+    println(momentum_tol, "for new")
+    println("terminal condition momentum", c.momentum) 
     # sols = map(probs) do prob
     #     solve(prob, solmethod(); callback=callbacks, kwargs...)
     # end
-    (length(probs) == 1) && (sols = solve(prob, solmethod(); callback=callbacks, kwargs...))
+    println(momentum_tol)
+
+    runn(p) = solve(p, solmethod(); callback=callbacks, kwargs...)
+
+    (length(probs) == 1) && (sols = runn(probs[1]))
 
     if length(probs) == 2
-        psol = Threads.@spawn solve(probs[2], solmethod(); callback=callbacks, kwargs...)
-        nsol = solve(probs[1], solmethod(); callback=callbacks, kwargs...)
+        psol = Threads.@spawn runn(probs[2])
+        nsol = runn(probs[1])
         nsol.u[:] = nsol.u[end:-1:1]
         nsol.t[:] = -nsol.t[end:-1:1]
         wait(psol)
         psol = psol.result
-        sols = (merge_sols(nsol, psol, probs[end]),)
+        sols = merge_sols(nsol, psol, probs[end])
     end
-    return sols
+    return MinimallyDisruptiveCurve(sols, c.cost)
     # return map(sol -> MinimallyDisruptiveCurve(sol, c.cost), sols)
 end

@@ -2,7 +2,7 @@ module MinimallyDisruptiveCurves
 
 using DiffEqBase, DiffEqCallbacks, OrdinaryDiffEq
 using FiniteDiff, LinearAlgebra, ModelingToolkit, ForwardDiff
-using RecipesBase, ThreadsX
+using RecipesBase
 
 
 # import ModelingToolkit: modelingtoolkitize

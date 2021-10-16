@@ -66,3 +66,9 @@ readjustment:
     readjust = :momentum
         affect = costate_affect
 cb = DiscreteCallback(cond, affect)
+
+## Issues
+
+something is going very weird with using old arrays:
+
+with play.jl (the lotka volterra) each time i run evolve i get a progressively weidrer curve. only if the spans are two sided.

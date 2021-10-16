@@ -40,7 +40,7 @@ Checks dHdu residual (u deriv of Hamiltonian). Returns true if residual is great
 function rescond(u, t, integrator, H, cost, θ₀, dθ, tol)
     absres = calculate_dHdu_residual(u, t, H, cost, θ₀, dθ)
     if absres > tol
-    @info "applying readjustment at t=$t, |res| = $absres"
+    # @info "applying readjustment at t=$t, |res| = $absres"
     return true
     else
         return false

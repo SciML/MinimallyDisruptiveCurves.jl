@@ -19,13 +19,14 @@ struct MDCProblem{A,B,C,D,E} <: CurveProblem
     momentum::D 
     tspan::E
     ## reverse initial direction and signflip curve span if the latter is nonpositive
-    function MDCProblem(a::A, b::B, c::C, d::D, e::E) where A where B where C where D where E
-        if max(e...) <= 0.
-            e = map(x -> -x |> abs, e)
-            c = -c
-        end
-        new{A,B,C,D,E}(a, b, c, d, e)
-    end
+    # function MDCProblem(a::A, b::B, c::C, d::D, e::E) where A where B where C where D where E
+    #     if max(e...) <= 0.
+    #         e = map(x -> -x |> abs, e)
+    #         c = -c
+    #         println("hi")
+    #     end
+    #     new{A,B,C,D,E}(a, b, c, d, e)
+    # end
 end
 
 num_params(c::CurveProblem) = length(c.p0)
@@ -37,8 +38,9 @@ function (c::MDCProblem)()
     spans = make_spans(c, c.tspan)
     cs = map(spans) do span
         mult = sign(span[end])
-        MDCProblem(c.cost, c.p0, mult * c.dp0, c.momentum, abs.(span))
+        return MDCProblem(c.cost, c.p0, mult * c.dp0, c.momentum, abs.(span))
     end
+    spans = map(x -> abs.(x), spans)
     u0s = initial_conditions.(cs)
     u0 = map(span -> initial_conditions(c), spans)
     fs = dynamics.(cs)
@@ -48,7 +50,7 @@ end
 
 function make_spans(c::MDCProblem, span)
     (span[1] > span[2]) && error("make your curve span monotone increasing")
-    if sign(max(span...)) !== sign(min(span...))
+    if (span[2] > 0) && (span[1] < 0)
         spans = ((0., span[1]), (0., span[2]))
     else
         spans = (span,)
@@ -125,7 +127,7 @@ function build_cond(c::MDCProblem, ::ResidualCondition, tol)
     function rescond(u, t, integ)
         absres = dHdu_residual(c, u, t, dθ) 
         absres > tol ? begin
-            @info "applying readjustment at t=$t, |res| = $absres"
+            # @info "applying readjustment at t=$t, |res| = $absres"
     return true
         end : return false
     end

@@ -82,6 +82,7 @@ function evolve(c::CurveProblem, solmethod=Tsit5; callbacks=nothing, momentum_to
         psol = psol.result
         sols = merge_sols(nsol, psol, probs[end])
     end
+    println(c.p0)
     return MinimallyDisruptiveCurve(sols, c.cost)
     # return map(sol -> MinimallyDisruptiveCurve(sol, c.cost), sols)
 end

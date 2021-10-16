@@ -56,7 +56,7 @@ ev(i) = -eigen(hess0).vectors[:,i]
 init_dir = ev(which_dir); momentum = 1.; span = (-15., 15.)
 curve_prob = MDCProblem(cost, p, init_dir, momentum, span)
 
-map(1:10) do i
+rr = map(1:10) do i
     curve_prob_orig = curveProblem(cost, p, init_dir, momentum, span)
     @time mdc2 = evolve(curve_prob_orig, Tsit5);
     @time mdc = evolve(curve_prob, Tsit5);

@@ -12,6 +12,11 @@ abstract type AffectType end
 struct StateAffect <: AffectType end
 struct CostateAffect <: AffectType end
 
+struct Verbose 
+    is::Bool 
+end
+Verbose() = Verbose.is
+
 struct MDCProblem{A,B,C,D,E} <: CurveProblem
     cost::A
     p0::B
@@ -19,14 +24,13 @@ struct MDCProblem{A,B,C,D,E} <: CurveProblem
     momentum::D 
     tspan::E
     ## reverse initial direction and signflip curve span if the latter is nonpositive
-    # function MDCProblem(a::A, b::B, c::C, d::D, e::E) where A where B where C where D where E
-    #     if max(e...) <= 0.
-    #         e = map(x -> -x |> abs, e)
-    #         c = -c
-    #         println("hi")
-    #     end
-    #     new{A,B,C,D,E}(a, b, c, d, e)
-    # end
+    function MDCProblem(a::A, b::B, c::C, d::D, e::E) where A where B where C where D where E
+        if max(e...) <= 0.
+            e = map(x -> -x |> abs, e) |> reverse
+            c = -c
+        end
+        new{A,B,C,D,E}(a, b, c, d, e)
+    end
 end
 
 num_params(c::CurveProblem) = length(c.p0)
@@ -115,8 +119,8 @@ function readjustment(c::CurveProblem, cnd::ConditionType, aff::AffectType, mome
     end
     cond = build_cond(c, cnd, momentum_tol)
     affect! = build_affect(c, aff)
-    cb = DiscreteCallback(cond, affect!)
-    end
+    return DiscreteCallback(cond, affect!)
+end
 
 function build_cond(c::MDCProblem, ::ResidualCondition, tol)
     N = num_params(c)
@@ -128,7 +132,7 @@ function build_cond(c::MDCProblem, ::ResidualCondition, tol)
         absres = dHdu_residual(c, u, t, dθ) 
         absres > tol ? begin
             # @info "applying readjustment at t=$t, |res| = $absres"
-    return true
+            return true
         end : return false
     end
     return rescond
@@ -146,6 +150,10 @@ end
     I wanted to put dθ[:] = ... here instead of dθ = ... . Somehow the output of the MDC changes each time if I do that, there is a dirty state being transmitted. But I don't at all see how from the code. Figure out.
 """
 
+
+"""
+Checks dHdu residual (u deriv of Hamiltonian). Returns true if residual is greater than some tolerance (it should be zero)
+"""
 function dHdu_residual(c::MDCProblem, u, t, dθ)
     N = num_params(c)
     H = c.momentum
@@ -155,16 +163,18 @@ function dHdu_residual(c::MDCProblem, u, t, dθ)
     λ = u[N + 1:end]
     μ2 = (c.cost(θ) - H) / 2.
 μ1 = t > 1e-3 ?  (λ' * λ - 4 * μ2^2 ) / (λ' * (θ - θ₀)) : 0.
-    dθ = (-λ + μ1 * (θ - θ₀)) / (2 * μ2)
+    dθ[:] = (-λ + μ1 * (θ - θ₀)) / (2 * μ2)
     dθ /= (sqrt(sum((dθ).^2))) 
     return sum(abs.(λ + 2 * μ2 * dθ))
 end
 
 
 """
-    I wanted to put dθ[:] = ... here instead of dθ = ... . Somehow the output of the MDC changes each time if I do that, there is a dirty state being transmitted. But I don't at all see how from the code. Figure out.
-"""
+    build_affect(c::MDCProblem, ::CostateAffect)
+Resets costate to undo effect of cumulative numerical error. Specifically, finds costate so that dHdu = 0, where H is the Hamiltonian.
 
+*I wanted to put dθ[:] = ... here instead of dθ = ... . Somehow the output of the MDC changes each time if I do that, there is a dirty state being transmitted. But I don't at all see how from the code. Figure out.*
+"""
 function build_affect(c::MDCProblem, ::CostateAffect)
     N = num_params(c)
     H = c.momentum
@@ -177,12 +187,20 @@ function build_affect(c::MDCProblem, ::CostateAffect)
         μ1 = integ.t > 1e-3 ?  (λ' * λ - 4 * μ2^2 ) / (λ' * (θ - θ₀)) : 0. 
         dθ = (-λ + μ1 * (θ - θ₀)) / (2 * μ2) 
         dθ /= (sqrt(sum((dθ).^2)))
-        integ.u[N + 1:end] =  -2 * μ2 * dθ
+    integ.u[N + 1:end] =  -2 * μ2 * dθ
         return integ
     end
     return integ -> reset_costate!(integ, dp)
 end
 
+
+"""
+    build_affect(c::MDCProblem, ::StateAffect)
+resets state so that residual is zero. also resets costate necessarily. NOT YET FULLY IMPLEMENTED
+min C(θ) such that norm(θ - θ₀)^2 = K where K is current distance
+we will do this with unconstrained optimisation and lagrange multipliers
+ideally would have an inequality constraint >=K. But Optim.jl doesn't support this
+"""
 function build_affect(c::MDCProblem, ::StateAffect)
         N = num_params(c)
     H = c.momentum
@@ -225,3 +243,4 @@ function build_affect(c::MDCProblem, ::StateAffect)
     end
     return integ -> reset_state!(integ, dp)
 end
+

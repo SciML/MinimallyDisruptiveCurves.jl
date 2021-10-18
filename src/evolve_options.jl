@@ -175,5 +175,5 @@ function TerminalCond(cost, H)
 end
 
 function build_callbacks(c::MDCProblem, callbacks, momentum_tol, kwargs...)
-    return CallbackSet(callbacks, MomentumReadjustment(c, momentum_tol; kwargs...), TerminalCond(c))
+    return CallbackSet(callbacks, TerminalCond(c), MomentumReadjustment(c, momentum_tol; kwargs...))
 end

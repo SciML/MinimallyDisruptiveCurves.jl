@@ -53,21 +53,28 @@ The small eigenvalues of the Hessian are one easy way of defining these directio
 hess0 = ForwardDiff.hessian(loss, p)
 ev(i) = -eigen(hess0).vectors[:,i]
 
-init_dir = ev(which_dir); momentum = 1.; span = (-15., 15.)
+init_dir = ev(which_dir); momentum = 0.1 ; span = (0., 15.)
 curve_prob = MDCProblem(cost, p, init_dir, momentum, span)
 
-rr = map(1:10) do i
-    curve_prob_orig = curveProblem(cost, p, init_dir, momentum, span)
-    @time mdc2 = evolve(curve_prob_orig, Tsit5);
-    @time mdc = evolve(curve_prob, Tsit5);
-    return cost_trajectory(mdc, mdc.sol.t) |> mean, cost_trajectory(mdc2, mdc2.sol.t) |> mean
-end
+# rr = map(1:2) do i
+# curve_prob_orig = curveProblem(cost, p, init_dir, momentum, span)
+ 
+cb = CallbackSet(
+    VerboseOutput(:low, 0.1:1:10), 
+    ParameterBounds([1,3], [-10.,-10.], [10.,10.])
+    )
+
+@time mdc = evolve(curve_prob, Tsit5; callback=cb);
+@time mdc2 = evolve(curve_prob_orig, Tsit5; callback=cb);
+
+return cost_trajectory(mdc, mdc.sol.t) |> mean, cost_trajectory(mdc2, mdc2.sol.t) |> mean
+# end
 
 
-function sol_at_p(p)
-    prob = remake(nom_prob; p=p)
-    sol = solve(prob, Tsit5())
-end
+# function sol_at_p(p)
+#     prob = remake(nom_prob; p=p)
+#     sol = solve(prob, Tsit5())
+# end
 
 # p1 = plot(mdc; pnames=[L"p_1" L"p_2" L"p_3" L"p_4"])
 

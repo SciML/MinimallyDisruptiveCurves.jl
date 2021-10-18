@@ -52,7 +52,7 @@ function evolve(c::curveProblem, solmethod=nothing; callback=nothing, momentum_t
 end
 
 
-function evolve(c::CurveProblem, solmethod=Tsit5; callbacks=nothing, momentum_tol=1e-3,kwargs...) 
+function evolve(c::CurveProblem, solmethod=Tsit5; callback=nothing, momentum_tol=1e-3,kwargs...) 
     
     function merge_sols(neg, pos, p)
         t = cat(neg.t, pos.t, dims=1)
@@ -61,14 +61,10 @@ function evolve(c::CurveProblem, solmethod=Tsit5; callbacks=nothing, momentum_to
     end
     
     probs = c()
-    callbacks = build_callbacks(c, callbacks, momentum_tol, kwargs...)
-    println(momentum_tol, "for new")
-    println("terminal condition momentum", c.momentum) 
+    callbacks = build_callbacks(c, callback, momentum_tol, kwargs...)
     # sols = map(probs) do prob
     #     solve(prob, solmethod(); callback=callbacks, kwargs...)
     # end
-    println(momentum_tol)
-
     runn(p) = solve(p, solmethod(); callback=callbacks, kwargs...)
 
     (length(probs) == 1) && (sols = runn(probs[1]))
@@ -82,7 +78,6 @@ function evolve(c::CurveProblem, solmethod=Tsit5; callbacks=nothing, momentum_to
         psol = psol.result
         sols = merge_sols(nsol, psol, probs[end])
     end
-    println(c.p0)
     return MinimallyDisruptiveCurve(sols, c.cost)
     # return map(sol -> MinimallyDisruptiveCurve(sol, c.cost), sols)
 end

@@ -37,7 +37,20 @@ num_params(c::CurveProblem) = length(c.p0)
 param_template(c::CurveProblem) = deepcopy(c.p0)
 initial_params(c::CurveProblem) = c.p0
 
-# does equivalent of make_ODEProblem
+function curveProblem(a, b, c, d, e)
+    @warn("curveProblem and specify_curve are DEPRECATED. please use MDCProblem (with the same arguments) instead")
+    return MDCProblem(a, b, c, d, e)
+end
+
+specify_curve(cost, p0, dp0, momentum, tspan) = curveProblem(cost, p0, dp0, momentum, tspan)
+specify_curve(;cost=nothing, p0=nothing, dp0=nothing,momentum=nothing,tspan=nothing) = curveProblem(cost, p0, dp0, momentum, tspan)
+
+
+
+"""
+    (c::MDCProblem)()
+returns a tuple of ODEProblems specificed by the MDCProblem. Usually a single ODEProblem. Two are provided if the curve crosses zero, so that one can run two curves in parallel going backwards/forwards from zero
+"""
 function (c::MDCProblem)()
     spans = make_spans(c, c.tspan)
     cs = map(spans) do span
@@ -52,6 +65,11 @@ function (c::MDCProblem)()
     # return map(sp -> ODEProblem(f, u0, sp), spans)  # make two problems for 2-sided tspan
 end
 
+"""
+    make_spans(c::MDCProblem, span)
+- makes sure span of curve is increasing.
+- if the span crosses zero, then returns two separate spans. evolve then runs two curves in parallel, going backwards/forwards from zero.
+"""
 function make_spans(c::MDCProblem, span)
     (span[1] > span[2]) && error("make your curve span monotone increasing")
     if (span[2] > 0) && (span[1] < 0)
@@ -62,17 +80,27 @@ function make_spans(c::MDCProblem, span)
     return spans
 end
 
+"""
+    initial_costate(c::MDCProblem)
+solves for the initial costate required to evolve a MD curve.
+"""
 function initial_costate(c::MDCProblem)
     μ₂ = (-c.momentum + c.cost(c.p0)) / 2.
     λ₀ = -2. * μ₂ * c.dp0 
     return λ₀
 end
 
+"""
+Generate initial conditions of an MDCProblem
+"""
 function initial_conditions(c::MDCProblem)
     λ₀ = initial_costate(c)
     return cat(c.p0, λ₀, dims=1)
 end
 
+"""
+Generate vector field for MD curve, as specified by MDCProblem
+"""
 function dynamics(c::MDCProblem)
     cost = c.cost
     ∇C = param_template(c)
@@ -98,6 +126,9 @@ function dynamics(c::MDCProblem)
         return upd
 end
 
+"""
+Callback to stop MD Curve evolving if cost > momentum
+"""
 function TerminalCond(c::MDCProblem)
     cost = c.cost
     H = c.momentum
@@ -108,8 +139,14 @@ function TerminalCond(c::MDCProblem)
     return DiscreteCallback(condition, terminate!)
 end
     
+"""
+    Callback to readjust momentum in the case that the numerical residual from the identity dHdu = 0 crosses a user-specified threshold
+"""
 MomentumReadjustment(c::CurveProblem, tol; kwargs...) = readjustment(c, ResidualCondition(), CostateAffect(), tol; kwargs...)
 
+"""
+    Callback to readjust state in the case that the numerical residual from the identity dHdu = 0 crosses a user-specified threshold. EXPERIMENTAL AND WILL PROBABLY BREAK
+"""
 StateReadjustment(c::CurveProblem, tol; kwargs...) = readjustment(c, ResidualCondition(), StateAffect(), tol; kwargs...)
         
     
@@ -242,5 +279,9 @@ function build_affect(c::MDCProblem, ::StateAffect)
         return integ
     end
     return integ -> reset_state!(integ, dp)
+end
+
+function build_callbacks(c::MDCProblem, callbacks, momentum_tol, kwargs...)
+    return CallbackSet(callbacks, TerminalCond(c), MomentumReadjustment(c, momentum_tol; kwargs...))
 end
 

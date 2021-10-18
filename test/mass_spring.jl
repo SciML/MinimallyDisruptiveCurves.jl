@@ -1,4 +1,6 @@
 using ModelingToolkit, OrdinaryDiffEq, DiffEqParamEstim, MinimallyDisruptiveCurves, ForwardDiff, LinearAlgebra, Test
+
+@warn("lo")
   
 function make_model(input)
     @parameters t
@@ -83,7 +85,7 @@ span = (-10., 10.);
 
 newdp0 = (eigen(H0)).vectors[:, 1]
 
-eprob = specify_curve(log_cost, newp0, newdp0, mom, span);
+eprob = MDCProblem(log_cost, newp0, newdp0, mom, span);
 
 cb1 = ParameterBounds([1,3], [-10.,-10.], [10.,10.])
 cb2 = VerboseOutput(:low, 0.1:2.:10)

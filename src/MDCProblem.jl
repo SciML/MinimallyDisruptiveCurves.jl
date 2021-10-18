@@ -12,10 +12,37 @@ abstract type AffectType end
 struct StateAffect <: AffectType end
 struct CostateAffect <: AffectType end
 
-struct Verbose 
-    is::Bool 
+abstract type CurveInfoSnippet end
+struct EmptyInfo <: CurveInfoSnippet end
+struct CurveDistance <: CurveInfoSnippet end
+struct HamiltonianResidual <: CurveInfoSnippet end
+
+struct Verbose{T <: CurveInfoSnippet,S <: Real,V <: AbstractRange} 
+    snippets::Vector{T}
+    timepoints::Union{V{S},Vector{S}}
 end
-Verbose() = Verbose.is
+
+Verbose() = Verbose([EmptyInfo()], 0:0)
+Verbose(snippet::EmptyInfo, times) = Verbose()
+Verbose(snippet <: CurveInfoSnippet, times) = Verbose([snippet], times)
+
+function (c::CurveDistance)(integ)
+    @info "curve length is $(integ.t)"
+    nothing
+end
+
+function (h::HamiltonianResidual)(integ)
+    @info "dHdu residual ="
+end
+
+function (v::Verbose)
+    function affect!(integ)
+
+        return integ
+    end
+    return PresetTimeCallback(v.times, affect!)
+end
+
 
 struct MDCProblem{A,B,C,D,E} <: CurveProblem
     cost::A
@@ -75,7 +102,7 @@ function make_spans(c::MDCProblem, span)
     if (span[2] > 0) && (span[1] < 0)
         spans = ((0., span[1]), (0., span[2]))
     else
-        spans = (span,)
+    spans = (span,)
     end
     return spans
 end
@@ -123,7 +150,7 @@ function dynamics(c::MDCProblem)
     res = λ  + 2 * μ2 * du[1:N]
         return nothing
     end
-        return upd
+    return upd
 end
 
 """
@@ -132,7 +159,7 @@ Callback to stop MD Curve evolving if cost > momentum
 function TerminalCond(c::MDCProblem)
     cost = c.cost
     H = c.momentum
-    N = num_params(c)
+N = num_params(c)
     function condition(u, t, integrator)
         return (cost(u[1:N]) > H)
     end
@@ -191,7 +218,7 @@ end
 """
 Checks dHdu residual (u deriv of Hamiltonian). Returns true if residual is greater than some tolerance (it should be zero)
 """
-function dHdu_residual(c::MDCProblem, u, t, dθ)
+    function dHdu_residual(c::MDCProblem, u, t, dθ)
     N = num_params(c)
     H = c.momentum
     θ₀ = initial_params(c)
@@ -200,7 +227,7 @@ function dHdu_residual(c::MDCProblem, u, t, dθ)
     λ = u[N + 1:end]
     μ2 = (c.cost(θ) - H) / 2.
 μ1 = t > 1e-3 ?  (λ' * λ - 4 * μ2^2 ) / (λ' * (θ - θ₀)) : 0.
-    dθ[:] = (-λ + μ1 * (θ - θ₀)) / (2 * μ2)
+    dθ = (-λ + μ1 * (θ - θ₀)) / (2 * μ2)
     dθ /= (sqrt(sum((dθ).^2))) 
     return sum(abs.(λ + 2 * μ2 * dθ))
 end
@@ -249,7 +276,7 @@ function build_affect(c::MDCProblem, ::StateAffect)
         K = sum((integ.u[1:N] - θ₀).^2)
         println(K)
         function constr(x) # constraint func: g = 0
-        return K - sum((x - θ₀).^2)
+            return K - sum((x - θ₀).^2)
         end
     
         function L(x)

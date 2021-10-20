@@ -3,7 +3,7 @@
 Evolves a minimally disruptive curve, with curve parameters specified by curveProblem. Uses DifferentialEquations.solve() to run the ODE.
 As well as MinimallyDisruptiveCurves.jl callbacks, you can use any DifferentialEquations.jl callbacks compatible with DifferentialEquations.solve(). 
 """
-function evolve(c::CurveProblem, solmethod=Tsit5; callback=nothing, momentum_tol=1e-3,kwargs...) 
+function evolve(c::CurveProblem, solmethod=Tsit5; mdc_callback=nothing, callback=nothing, momentum_tol=1e-3,kwargs...) 
     
     function merge_sols(neg, pos, p)
         t = cat(neg.t, pos.t, dims=1)
@@ -12,12 +12,15 @@ function evolve(c::CurveProblem, solmethod=Tsit5; callback=nothing, momentum_tol
     end
     
     probs = c()
-    callbacks = build_callbacks(c, callback, momentum_tol, kwargs...)
-    # sols = map(probs) do prob
-    #     solve(prob, solmethod(); callback=callbacks, kwargs...)
-    # end
-    runn(p) = solve(p, solmethod(); callback=callbacks, kwargs...)
+    
+    isnothing(mdc_callback) && (mdc_callback = Vector{CallbackCallable}([MomentumReadjustment(momentum_tol)]))
 
+    callbacks = CallbackSet(
+        build_callbacks(c, mdc_callback, momentum_tol)...,
+        build_callbacks(c, callback)
+    )
+
+    runn(p) = solve(p, solmethod(); callback=callbacks, kwargs...)
     (length(probs) == 1) && (sols = runn(probs[1]))
 
     if length(probs) == 2

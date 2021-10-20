@@ -8,41 +8,31 @@ abstract type ConditionType end
 struct ResidualCondition <: ConditionType end
 struct CostCondition <: ConditionType end 
 
+abstract type CallbackCallable end
+abstract type AdjustmentCallback <: CallbackCallable end
+
+struct MomentumReadjustment{T <: AbstractFloat} <: AdjustmentCallback
+    tol::T
+    verbose::Bool
+end
+
+struct TerminalCond <: AdjustmentCallback end
+MomentumReadjustment(a; verbose=false) = MomentumReadjustment(a, verbose)
+
+
+
+
+
+struct StateReadjustment{T <: AbstractFloat} <: AdjustmentCallback
+    tol::T
+verbose::Bool
+end
+StateReadjustment(a; verbose=false) = StateReadjustment(a, verbose)
+
+
 abstract type AffectType end
 struct StateAffect <: AffectType end
 struct CostateAffect <: AffectType end
-
-abstract type CurveInfoSnippet end
-struct EmptyInfo <: CurveInfoSnippet end
-struct CurveDistance <: CurveInfoSnippet end
-struct HamiltonianResidual <: CurveInfoSnippet end
-
-struct Verbose{T <: CurveInfoSnippet,S <: Real,V <: AbstractRange} 
-    snippets::Vector{T}
-    timepoints::Union{V{S},Vector{S}}
-end
-
-Verbose() = Verbose([EmptyInfo()], 0:0)
-Verbose(snippet::EmptyInfo, times) = Verbose()
-Verbose(snippet <: CurveInfoSnippet, times) = Verbose([snippet], times)
-
-function (c::CurveDistance)(integ)
-    @info "curve length is $(integ.t)"
-    nothing
-end
-
-function (h::HamiltonianResidual)(integ)
-    @info "dHdu residual ="
-end
-
-function (v::Verbose)
-    function affect!(integ)
-
-        return integ
-    end
-    return PresetTimeCallback(v.times, affect!)
-end
-
 
 struct MDCProblem{A,B,C,D,E} <: CurveProblem
     cost::A
@@ -72,6 +62,14 @@ end
 specify_curve(cost, p0, dp0, momentum, tspan) = curveProblem(cost, p0, dp0, momentum, tspan)
 specify_curve(;cost=nothing, p0=nothing, dp0=nothing,momentum=nothing,tspan=nothing) = curveProblem(cost, p0, dp0, momentum, tspan)
 
+"""
+    Callback to readjust momentum in the case that the numerical residual from the identity dHdu = 0 crosses a user-specified threshold
+"""
+(m::MomentumReadjustment)(c::CurveProblem) = readjustment(c, ResidualCondition(), CostateAffect(), m.tol, m.verbose)
+"""
+    Callback to readjust state in the case that the numerical residual from the identity dHdu = 0 crosses a user-specified threshold. EXPERIMENTAL AND WILL PROBABLY BREAK
+"""
+(m::StateReadjustment)(c::CurveProblem) = readjustment(c, ResidualCondition(), StateAffect(), m.tol, m.verbose)
 
 
 """
@@ -151,33 +149,25 @@ function dynamics(c::MDCProblem)
         return nothing
     end
     return upd
-end
-
+    end
+    
 """
 Callback to stop MD Curve evolving if cost > momentum
 """
-function TerminalCond(c::MDCProblem)
+function (t::TerminalCond)(c::MDCProblem)
     cost = c.cost
     H = c.momentum
-N = num_params(c)
+    N = num_params(c)
     function condition(u, t, integrator)
         return (cost(u[1:N]) > H)
     end
     return DiscreteCallback(condition, terminate!)
 end
     
-"""
-    Callback to readjust momentum in the case that the numerical residual from the identity dHdu = 0 crosses a user-specified threshold
-"""
-MomentumReadjustment(c::CurveProblem, tol; kwargs...) = readjustment(c, ResidualCondition(), CostateAffect(), tol; kwargs...)
 
-"""
-    Callback to readjust state in the case that the numerical residual from the identity dHdu = 0 crosses a user-specified threshold. EXPERIMENTAL AND WILL PROBABLY BREAK
-"""
-StateReadjustment(c::CurveProblem, tol; kwargs...) = readjustment(c, ResidualCondition(), StateAffect(), tol; kwargs...)
         
     
-function readjustment(c::CurveProblem, cnd::ConditionType, aff::AffectType, momentum_tol; kwargs...)
+function readjustment(c::CurveProblem, cnd::ConditionType, aff::AffectType, momentum_tol, verbose::Bool)
     if isnan(momentum_tol)
         return nothing
     end
@@ -248,11 +238,11 @@ function build_affect(c::MDCProblem, ::CostateAffect)
         θ = integ.u[1:N] # current parameter vector
         λ = integ.u[N + 1:end] # current costate vector 
         μ2 = (c.cost(θ) - H) / 2
-        μ1 = integ.t > 1e-3 ?  (λ' * λ - 4 * μ2^2 ) / (λ' * (θ - θ₀)) : 0. 
+    μ1 = integ.t > 1e-3 ?  (λ' * λ - 4 * μ2^2 ) / (λ' * (θ - θ₀)) : 0. 
         dθ = (-λ + μ1 * (θ - θ₀)) / (2 * μ2) 
         dθ /= (sqrt(sum((dθ).^2)))
     integ.u[N + 1:end] =  -2 * μ2 * dθ
-        return integ
+return integ
     end
     return integ -> reset_costate!(integ, dp)
 end
@@ -278,15 +268,15 @@ function build_affect(c::MDCProblem, ::StateAffect)
         function constr(x) # constraint func: g = 0
             return K - sum((x - θ₀).^2)
         end
-    
+            
         function L(x)
             θ, λ = x[1:end - 1], x[end]
             return cost(θ) + λ * constr(θ)
         end
         gc = deepcopy(θ₀)
-        function L(x, g)
+            function L(x, g)
             θ, λ = x[1:end - 1], x[end]
-            C = cost(θ, dθ) # dθ is just an arbitrary pre-allocation
+        C = cost(θ, dθ) # dθ is just an arbitrary pre-allocation
             cstr = constr(θ)
             g[1:end - 1] = gc + 2 * λ * (θ - θ₀)
             g[end] = cstr
@@ -303,12 +293,30 @@ function build_affect(c::MDCProblem, ::StateAffect)
         @info "cost after readjustment is $(opt.minimum). cost before readjustment was $C0"
         (opt.ls_success == true) && (integ.u[1:N] = opt.minimizer[1:N])
         integ = _reset_costate!(integ, dθ)
-        return integ
+return integ
     end
     return integ -> reset_state!(integ, dp)
 end
 
-function build_callbacks(c::MDCProblem, callbacks, momentum_tol, kwargs...)
-    return CallbackSet(callbacks, TerminalCond(c), MomentumReadjustment(c, momentum_tol; kwargs...))
+
+
+function build_callbacks(c::MDCProblem, callbacks::SciMLBase.DECallback)
+    # DECallback supertype includes CallbackSet
+    return CallbackSet(callback)
 end
 
+build_callbacks(c, n::Nothing) = nothing
+
+function build_callbacks(c::MDCProblem, mdc_callbacks::Vector{T}, mtol) where T <: CallbackCallable
+
+    if !any(x -> typeof(x) <: MomentumReadjustment, mdc_callbacks)
+        push!(mdc_callbacks, MomentumReadjustment(mtol))
+    end
+    push!(mdc_callbacks, TerminalCond())
+    actual_callbacks = map(mdc_callbacks) do cb
+        a = cb(c)
+    end |> x -> vcat(x...)
+    return actual_callbacks
+end
+
+build_callbacks(::MDCProblem{DiffCost{typeof(loss),typeof(lossgrad)},Vector{Float64},Vector{Float64},Float64,Tuple{Float64,Float64}}, ::Vector{CallbackCallable})

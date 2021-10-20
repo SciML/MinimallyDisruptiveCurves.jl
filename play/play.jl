@@ -59,15 +59,17 @@ curve_prob = MDCProblem(cost, p, init_dir, momentum, span)
 # rr = map(1:2) do i
 # curve_prob_orig = curveProblem(cost, p, init_dir, momentum, span)
  
-cb = CallbackSet(
-    VerboseOutput(:low, 0.1:1:10), 
+cb = [
+    Verbose([CurveDistance(0.1:1:10), HamiltonianResidual(2.3:4:10)]),
     ParameterBounds([1,3], [-10.,-10.], [10.,10.])
-    )
+    ]
 
-@time mdc = evolve(curve_prob, Tsit5; callback=cb);
-@time mdc2 = evolve(curve_prob_orig, Tsit5; callback=cb);
+# don't make the user do (curve_prob...) for Verbose
+# make MomentumReadjustment 
 
-return cost_trajectory(mdc, mdc.sol.t) |> mean, cost_trajectory(mdc2, mdc2.sol.t) |> mean
+@time mdc = evolve(curve_prob, Tsit5; mdc_callback=cb);
+
+# return cost_trajectory(mdc, mdc.sol.t) |> mean, cost_trajectory(mdc2, mdc2.sol.t) |> mean
 # end
 
 

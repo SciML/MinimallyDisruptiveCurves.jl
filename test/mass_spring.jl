@@ -87,10 +87,12 @@ newdp0 = (eigen(H0)).vectors[:, 1]
 
 eprob = MDCProblem(log_cost, newp0, newdp0, mom, span);
 
-cb1 = ParameterBounds([1,3], [-10.,-10.], [10.,10.])
-cb2 = VerboseOutput(:low, 0.1:2.:10)
-cb = CallbackSet(cb1, cb2);
-@time mdc = evolve(eprob, Tsit5; callback=cb);
+cb = [
+    Verbose([CurveDistance(0.1:1:10), HamiltonianResidual(2.3:4:10)]),
+    ParameterBounds([1,3], [-10.,-10.], [10.,10.])
+    ]
+
+@time mdc = evolve(eprob, Tsit5; mdc_callback=cb);
 
 
 """

@@ -1,26 +1,45 @@
 abstract type CurveInfoSnippet end
 struct EmptyInfo <: CurveInfoSnippet end
-struct CurveDistance <: CurveInfoSnippet end
-struct HamiltonianResidual <: CurveInfoSnippet end
 
+struct CurveDistance{V <: AbstractFloat} <: CurveInfoSnippet 
+    timepoints::Vector{V}
+end
+struct HamiltonianResidual{V <: AbstractFloat} <: CurveInfoSnippet 
+    timepoints::Vector{V}
+end
+CurveDistance(a::AbstractRange) = CurveDistance(a |> collect)
+HamiltonianResidual(a::AbstractRange) = HamiltonianResidual(a |> collect)
 
-struct Verbose{T <: CurveInfoSnippet,S <: Real,V <: AbstractRange} 
+struct Verbose{T <: CurveInfoSnippet} <: CallbackCallable
     snippets::Vector{T}
-    timepoints::Union{V{S},Vector{S}}
 end
 
-Verbose() = Verbose([EmptyInfo()], 0:0)
-Verbose(snippet::EmptyInfo, times) = Verbose()
-Verbose(snippet <: CurveInfoSnippet, times) = Verbose([snippet], times)
 
-function (c::CurveDistance)(c::CurveProblem, u, t, integ)
+"""
+    ParameterBounds(ids, lbs, ubs)
+    - ids are the indices of the model parameters that you want to bound
+    - lbs are an array of lower bounds, with length == to indices
+    - ubs are...well you can guess.
+"""
+struct ParameterBounds{I <: Integer,T <: Number} <: AdjustmentCallback
+    ids::Vector{I}
+    lbs::Vector{T}
+    ubs::Vector{T}
+end
+
+
+Verbose() = Verbose([EmptyInfo()])
+Verbose(snippet::EmptyInfo) = Verbose()
+Verbose(snippet::T) where T <: CurveInfoSnippet = Verbose([snippet])
+
+function (c::CurveDistance)(cp::CurveProblem, u, t, integ)
     @info "curve length is $t"
     nothing
 end
 
 function (h::HamiltonianResidual)(c::CurveProblem, u, t, integ)
     x = dHdu_residual(c, u, t, nothing)
-    @info "dHdu residual = $x"
+    @info "dHdu residual = $x at curve length $t"
 end
 
 (e::EmptyInfo)(c, u, t, integ) = nothing
@@ -31,9 +50,12 @@ end
 
 
 function (v::Verbose)(c::CurveProblem)
-    
-    to_call = (u, t, _integ) -> map(_integ -> x(c, u, t, _integ), v.snippets)
-    return FunctionCallingCallback(to_call; v.times)
+    to_call = map(v.snippets) do snippet
+        (u, t, _integ) -> snippet(c, u, t, _integ)
+    end
+    return map(to_call, v.snippets) do each, snippet        
+        FunctionCallingCallback(each; funcat=snippet.timepoints)
+    end
 end
 
 
@@ -68,11 +90,11 @@ end
 parameters[ids] must fall within lbs and ubs, where lbs and ubs are Arrays of the same size as ids.
 Create hard bounds on the parameter space over which the minimally disruptive curve can trace. Curve evolution terminates if it hits a bound.
 """
-    function ParameterBounds(ids, lbs, ubs)
+    function (p::ParameterBounds)(c::CurveProblem)
         function condition(u, t, integrator)
-            tests = u[ids]
-            any(tests .< lbs) && return true
-            any(tests .> ubs) && return true
+            tests = u[p.ids]
+            any(tests .< p.lbs) && return true
+            any(tests .> p.ubs) && return true
             return false
         end
         return DiscreteCallback(condition, terminate!)

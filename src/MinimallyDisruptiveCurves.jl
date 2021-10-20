@@ -1,6 +1,6 @@
 module MinimallyDisruptiveCurves
 
-using DiffEqBase, DiffEqCallbacks, OrdinaryDiffEq
+using SciMLBase, DiffEqCallbacks, OrdinaryDiffEq
 using FiniteDiff, LinearAlgebra, ModelingToolkit, ForwardDiff
 using RecipesBase
 
@@ -23,13 +23,14 @@ include("evolve.jl")
 
 export DiffCost, make_fd_differentiable, l2_hessian
 
-export curveProblem, specify_curve, evolve, trajectory, costate_trajectory, MDCProblem
+export CurveProblem, specify_curve, evolve, trajectory, costate_trajectory, MDCProblem
+
 
 export TransformationStructure, logabs_transform, bias_transform, transform_problem, transform_ODESystem, only_free_params, fix_params, transform_cost
 
 export sum_losses, build_injection_loss, get_name_ids, soft_heaviside, biggest_movers, get_ids_names
 
-export MomentumReadjustment, StateReadjustment, VerboseOutput, ParameterBounds
+export MomentumReadjustment, StateReadjustment, VerboseOutput, ParameterBounds, CurveInfoSnippet, CurveDistance, HamiltonianResidual, Verbose, TerminalCond, CallbackCallable
 
-export MinimallyDisruptiveCurve, Δ, distances, trajectory, costate_trajectory, add_cost, cost_trajectory
+export Δ, distances, trajectory, costate_trajectory, add_cost, cost_trajectory
 end # module

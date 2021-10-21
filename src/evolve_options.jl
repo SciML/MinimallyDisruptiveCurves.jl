@@ -45,6 +45,9 @@ struct Verbose{T <: CurveInfoSnippet} <: CallbackCallable
     snippets::Vector{T}
 end
 
+Verbose() = Verbose([EmptyInfo()])
+Verbose(snippet::EmptyInfo) = Verbose()
+Verbose(snippet::T) where T <: CurveInfoSnippet = Verbose([snippet])
 
 """
     ParameterBounds(ids, lbs, ubs)
@@ -59,10 +62,6 @@ struct ParameterBounds{I <: Integer,T <: Number} <: AdjustmentCallback
 end
 
 
-Verbose() = Verbose([EmptyInfo()])
-Verbose(snippet::EmptyInfo) = Verbose()
-Verbose(snippet::T) where T <: CurveInfoSnippet = Verbose([snippet])
-
 function (c::CurveDistance)(cp::CurveProblem, u, t, integ)
     @info "curve length is $t"
     nothing
@@ -74,7 +73,6 @@ function (h::HamiltonianResidual)(c::CurveProblem, u, t, integ)
 end
 
 (e::EmptyInfo)(c, u, t, integ) = nothing
-
 
 
 function (v::Verbose)(c::CurveProblem)

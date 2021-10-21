@@ -1,50 +1,3 @@
-abstract type CurveProblem end
-
-
-"""
-For callbacks to tune MD Curve
-"""
-abstract type ConditionType end
-struct ResidualCondition <: ConditionType end
-struct CostCondition <: ConditionType end 
-
-abstract type CallbackCallable end
-abstract type AdjustmentCallback <: CallbackCallable end
-
-
-"""
-    MomentumReadjustment(tol::AbstractFloat, verbose::Bool)
-Ideally, dHdu = 0 throughout curve evolution, where H is the Hamiltonian/momentum, and u is the curve velocity in parameter space. Numerical error integrates and prevents this. This struct readjusts momentum when `abs(dHdu) > tol`, so that `dHdu = 0` is recovered. 
-"""
-struct MomentumReadjustment{T <: AbstractFloat} <: AdjustmentCallback
-    tol::T
-    verbose::Bool
-end
-
-"""
-    Terminates curve evolution when the cost exceeds the momentum
-"""
-struct TerminalCond <: AdjustmentCallback end
-MomentumReadjustment(a; verbose=false) = MomentumReadjustment(a, verbose)
-
-
-
-
-"""
-Experimental. See documentation for MomentumReadjustment. This acts the  same, but instead of modifying the momentum, it modifies the state of the curve (i.e. current parameters) itself, by doing gradient descent to minimise the cost function, subject to the constraint that the distance from the initial parameters does not decrease. 
-"""
-struct StateReadjustment{T <: AbstractFloat} <: AdjustmentCallback
-    tol::T
-verbose::Bool
-end
-StateReadjustment(a; verbose=false) = StateReadjustment(a, verbose)
-
-
-abstract type AffectType end
-struct StateAffect <: AffectType end
-struct CostateAffect <: AffectType end
-
-
 """
     MDCProblem(cost, p0, dp0, momentum, tspan)
 Creates an MDCProblem, that can then generate a minimally disruptive curve using evolve(c::MDCProblem, ...; ...)
@@ -122,7 +75,7 @@ function make_spans(c::MDCProblem, span)
     if (span[2] > 0) && (span[1] < 0)
         spans = ((0., span[1]), (0., span[2]))
     else
-    spans = (span,)
+        spans = (span,)
     end
     return spans
 end
@@ -193,7 +146,7 @@ function readjustment(c::CurveProblem, cnd::ConditionType, aff::AffectType, mome
     if isnan(momentum_tol)
         return nothing
     end
-    cond = build_cond(c, cnd, momentum_tol)
+cond = build_cond(c, cnd, momentum_tol)
     affect! = build_affect(c, aff)
     return DiscreteCallback(cond, affect!)
 end
@@ -207,7 +160,7 @@ function build_cond(c::MDCProblem, ::ResidualCondition, tol)
     function rescond(u, t, integ)
         absres = dHdu_residual(c, u, t, dθ) 
 absres > tol ? begin
-            # @info "applying readjustment at t=$t, |res| = $absres"
+# @info "applying readjustment at t=$t, |res| = $absres"
             return true
         end : return false
     end
@@ -290,7 +243,7 @@ function build_affect(c::MDCProblem, ::StateAffect)
         println(K)
         function constr(x) # constraint func: g = 0
             return K - sum((x - θ₀).^2)
-        end
+            end
             
         function L(x)
             θ, λ = x[1:end - 1], x[end]
@@ -317,7 +270,7 @@ function build_affect(c::MDCProblem, ::StateAffect)
         (opt.ls_success == true) && (integ.u[1:N] = opt.minimizer[1:N])
     integ = _reset_costate!(integ, dθ)
 return integ
-    end
+end
     return integ -> reset_state!(integ, dp)
 end
 

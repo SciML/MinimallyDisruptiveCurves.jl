@@ -6,6 +6,7 @@ using RecipesBase
 
 
 # import ModelingToolkit: modelingtoolkitize
+include("MDCTypes.jl")
 include("MDCProblem.jl")
 include("MDCSolution.jl")
 include("utilities/loss_algebra.jl")

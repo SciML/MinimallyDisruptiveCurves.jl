@@ -11,18 +11,28 @@ struct CostCondition <: ConditionType end
 abstract type CallbackCallable end
 abstract type AdjustmentCallback <: CallbackCallable end
 
+
+"""
+    MomentumReadjustment(tol::AbstractFloat, verbose::Bool)
+Ideally, dHdu = 0 throughout curve evolution, where H is the Hamiltonian/momentum, and u is the curve velocity in parameter space. Numerical error integrates and prevents this. This struct readjusts momentum when `abs(dHdu) > tol`, so that `dHdu = 0` is recovered. 
+"""
 struct MomentumReadjustment{T <: AbstractFloat} <: AdjustmentCallback
     tol::T
     verbose::Bool
 end
 
+"""
+    Terminates curve evolution when the cost exceeds the momentum
+"""
 struct TerminalCond <: AdjustmentCallback end
 MomentumReadjustment(a; verbose=false) = MomentumReadjustment(a, verbose)
 
 
 
 
-
+"""
+Experimental. See documentation for MomentumReadjustment. This acts the  same, but instead of modifying the momentum, it modifies the state of the curve (i.e. current parameters) itself, by doing gradient descent to minimise the cost function, subject to the constraint that the distance from the initial parameters does not decrease. 
+"""
 struct StateReadjustment{T <: AbstractFloat} <: AdjustmentCallback
     tol::T
 verbose::Bool
@@ -34,6 +44,11 @@ abstract type AffectType end
 struct StateAffect <: AffectType end
 struct CostateAffect <: AffectType end
 
+
+"""
+    MDCProblem(cost, p0, dp0, momentum, tspan)
+Creates an MDCProblem, that can then generate a minimally disruptive curve using evolve(c::MDCProblem, ...; ...)
+"""
 struct MDCProblem{A,B,C,D,E} <: CurveProblem
     cost::A
     p0::B
@@ -54,11 +69,18 @@ num_params(c::CurveProblem) = length(c.p0)
 param_template(c::CurveProblem) = deepcopy(c.p0)
 initial_params(c::CurveProblem) = c.p0
 
+
+"""
+DEPRECATED. use MDCProblem
+"""
 function curveProblem(a, b, c, d, e)
     @warn("curveProblem and specify_curve are DEPRECATED. please use MDCProblem (with the same arguments) instead")
     return MDCProblem(a, b, c, d, e)
 end
 
+"""
+DEPRECATED. use MDCproblem
+"""
 specify_curve(cost, p0, dp0, momentum, tspan) = curveProblem(cost, p0, dp0, momentum, tspan)
 specify_curve(;cost=nothing, p0=nothing, dp0=nothing,momentum=nothing,tspan=nothing) = curveProblem(cost, p0, dp0, momentum, tspan)
 
@@ -145,7 +167,7 @@ function dynamics(c::MDCProblem)
         du[1:N] /= (sqrt(sum((du[1:N]).^2)))
         damping_constant = (λ' * du[1:N]) / (H - C)  # theoretically = 1 but not numerically
         du[N + 1:end] = @. (μ1 * du[1:N] - ∇C) * damping_constant # ie dλ
-    res = λ  + 2 * μ2 * du[1:N]
+res = λ  + 2 * μ2 * du[1:N]
         return nothing
     end
     return upd
@@ -184,7 +206,7 @@ function build_cond(c::MDCProblem, ::ResidualCondition, tol)
 
     function rescond(u, t, integ)
         absres = dHdu_residual(c, u, t, dθ) 
-        absres > tol ? begin
+absres > tol ? begin
             # @info "applying readjustment at t=$t, |res| = $absres"
             return true
         end : return false
@@ -200,11 +222,10 @@ function build_cond(c::MDCProblem, ::CostCondition, tol)
      return costcond
 end
 
-"""
-    I wanted to put dθ[:] = ... here instead of dθ = ... . Somehow the output of the MDC changes each time if I do that, there is a dirty state being transmitted. But I don't at all see how from the code. Figure out.
-"""
 
-
+"""
+    For dHdu_residual and build_affect(::MDCProblem, ::CostateAffect): there is an unnecessary allocation in the line `dθ = ...`. I initially used `dθ[:] = ....`, but this produced unreliable output (the MDCurve changed on each solution). I found that this was because temporary arrays like this are not safe in callbacks, for some reason. The solution is to use SciMLBase.get_tmp_cache. Don't have time to figure out how to do this right now. Do at some point. 
+"""
 """
 Checks dHdu residual (u deriv of Hamiltonian). Returns true if residual is greater than some tolerance (it should be zero)
 """
@@ -306,9 +327,9 @@ function build_callbacks(c::MDCProblem, callbacks::SciMLBase.DECallback)
 end
 
 build_callbacks(c, n::Nothing) = nothing
-
+    
 function build_callbacks(c::MDCProblem, mdc_callbacks::Vector{T}, mtol) where T <: CallbackCallable
-
+        
     if !any(x -> typeof(x) <: MomentumReadjustment, mdc_callbacks)
         push!(mdc_callbacks, MomentumReadjustment(mtol))
     end

@@ -1,15 +1,46 @@
 abstract type CurveInfoSnippet end
 struct EmptyInfo <: CurveInfoSnippet end
 
+"""
+    CurveDistance(timepoints::AbstractRange)
+    CurveDistance(timepoints::Vector{<:AbstractFloat})
+Print @info REPL output when curve distance reaches each of the timepoints::Vector{<:AbstractFloat}
+
+Example
+c = CurveDistance(0.1:0.1:2.1)
+
+c can then be used as an argument to Verbose(), which then goes as a keyword argument into evolve.
+"""
 struct CurveDistance{V <: AbstractFloat} <: CurveInfoSnippet 
     timepoints::Vector{V}
 end
+
+"""
+    HamiltonianResidual(timepoints::AbstractRange)
+    HamiltonianResidual(timepoints::Vector{<:AbstractFloat})
+Print @info REPL output on the numerical value of dHdu, the u-derivative of the Hamiltonian, at timepoints::Vector{<:AbstractFloat}
+
+Example
+c = HamiltonianResidual(0.1:0.1:2.1)
+
+c can then be used as an argument to Verbose(), which then goes as a keyword argument into evolve.
+"""
 struct HamiltonianResidual{V <: AbstractFloat} <: CurveInfoSnippet 
     timepoints::Vector{V}
 end
 CurveDistance(a::AbstractRange) = CurveDistance(a |> collect)
 HamiltonianResidual(a::AbstractRange) = HamiltonianResidual(a |> collect)
 
+
+"""
+Construct as `v = Verbose(a::Vector{T}) where T <: CallbackCallable`
+
+Example:
+```v = Verbose([HamiltonianResidual(0.1:2.:10), CurveDistance(0.1:0.1:5)])
+evolve(c::MDCProblem, ...; mdc_callback=[v, other_mdc_callbacks])
+````
+In this case, you would get REPL output as the curve evolved, indicating when the curve reached each distance in `0.1:0.1:5`, and indicating the residual on dHdu, which is ideally zero, at `0.1:0.1:5`.
+"""
 struct Verbose{T <: CurveInfoSnippet} <: CallbackCallable
     snippets::Vector{T}
 end
@@ -45,9 +76,6 @@ end
 (e::EmptyInfo)(c, u, t, integ) = nothing
 
 
-# FunctionCallingCallback(func;
-#                funcat=Vector{Float64}(),
-
 
 function (v::Verbose)(c::CurveProblem)
     to_call = map(v.snippets) do snippet
@@ -63,6 +91,7 @@ end
 
 
 """
+    DEPRECATED, use Verbose() instead.
     VerboseOutput(level=:low, times = 0:0.1:1.)
     Callback to give online info on how the solution is going, as the MDCurve evolves. activates at curve distances specified by times
 """

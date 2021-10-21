@@ -1,4 +1,9 @@
 abstract type CurveProblem end
+abstract type CurveModifier end
+
+struct JumpStart{F <: AbstractFloat} <: CurveModifier
+    jumpsize::F
+end
 
 
 """

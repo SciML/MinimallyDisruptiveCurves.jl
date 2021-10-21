@@ -70,12 +70,20 @@ end
 - makes sure span of curve is increasing.
 - if the span crosses zero, then returns two separate spans. evolve then runs two curves in parallel, going backwards/forwards from zero.
 """
-function make_spans(c::MDCProblem, span)
+function make_spans(c::CurveProblem, span)
     (span[1] > span[2]) && error("make your curve span monotone increasing")
     if (span[2] > 0) && (span[1] < 0)
         spans = ((0., span[1]), (0., span[2]))
     else
         spans = (span,)
+    end
+    return spans
+end
+
+function make_spans(c::CurveProblem, span, j::JumpStart)
+    spans = make_spans(c, span)
+    spans = map(spans) do span
+        (span[1] +  0.1 * sign(span[2]), span[2])
     end
     return spans
 end
@@ -232,10 +240,10 @@ we will do this with unconstrained optimisation and lagrange multipliers
 ideally would have an inequality constraint >=K. But Optim.jl doesn't support this
 """
 function build_affect(c::MDCProblem, ::StateAffect)
-        N = num_params(c)
+    N = num_params(c)
     H = c.momentum
     cost = c.cost
-        θ₀ = initial_params(c)
+    θ₀ = initial_params(c)
     dp = param_template(c)
     _reset_costate! = build_affect(c, CostateAffect())
     function reset_state!(integ, dθ)
@@ -243,21 +251,20 @@ function build_affect(c::MDCProblem, ::StateAffect)
         println(K)
         function constr(x) # constraint func: g = 0
             return K - sum((x - θ₀).^2)
-            end
+        end
             
         function L(x)
             θ, λ = x[1:end - 1], x[end]
             return cost(θ) + λ * constr(θ)
         end
         gc = deepcopy(θ₀)
-            function L(x, g)
+        function L(x, g)
             θ, λ = x[1:end - 1], x[end]
-        C = cost(θ, dθ) # dθ is just an arbitrary pre-allocation
+            C = cost(θ, dθ) # dθ is just an arbitrary pre-allocation
             cstr = constr(θ)
             g[1:end - 1] = gc + 2 * λ * (θ - θ₀)
             g[end] = cstr
             return C + λ * cstr
-            return 
         end
         g = zeros(N + 1)
         # lagr = L(cat(θ₀.+1., 0., dims=1), g)
@@ -266,7 +273,7 @@ function build_affect(c::MDCProblem, ::StateAffect)
         # println("θ is ")
         opt = optimize(L, cat(integ.u[1:N], 0., dims=1), LBFGS())
         C0 = cost(θ₀)
-        @info "cost after readjustment is $(opt.minimum). cost before readjustment was $C0"
+    @info "cost after readjustment is $(opt.minimum). cost before readjustment was $C0"
         (opt.ls_success == true) && (integ.u[1:N] = opt.minimizer[1:N])
     integ = _reset_costate!(integ, dθ)
 return integ

@@ -1,6 +1,4 @@
 using ModelingToolkit, OrdinaryDiffEq, DiffEqParamEstim, MinimallyDisruptiveCurves, ForwardDiff, LinearAlgebra, Test
-
-@warn("lo")
   
 function make_model(input)
     @parameters t

@@ -226,8 +226,10 @@ end
 """
     For dHdu_residual and build_affect(::MDCProblem, ::CostateAffect): there is an unnecessary allocation in the line `dθ = ...`. I initially used `dθ[:] = ....`, but this produced unreliable output (the MDCurve changed on each solution). I found that this was because temporary arrays like this are not safe in callbacks, for some reason. The solution is to use SciMLBase.get_tmp_cache. Don't have time to figure out how to do this right now. Do at some point. 
 """
+
 """
-Checks dHdu residual (u deriv of Hamiltonian). Returns true if residual is greater than some tolerance (it should be zero)
+    dHdu_residual(c::MDCProblem, u, t, dθ)
+Checks dHdu residual (u deriv of Hamiltonian). Returns true if abs(residual) is greater than some tolerance (it should be zero)
 """
     function dHdu_residual(c::MDCProblem, u, t, dθ)
     N = num_params(c)
@@ -313,7 +315,7 @@ function build_affect(c::MDCProblem, ::StateAffect)
         C0 = cost(θ₀)
         @info "cost after readjustment is $(opt.minimum). cost before readjustment was $C0"
         (opt.ls_success == true) && (integ.u[1:N] = opt.minimizer[1:N])
-        integ = _reset_costate!(integ, dθ)
+    integ = _reset_costate!(integ, dθ)
 return integ
     end
     return integ -> reset_state!(integ, dp)

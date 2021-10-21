@@ -318,5 +318,3 @@ function build_callbacks(c::MDCProblem, mdc_callbacks::Vector{T}, mtol) where T 
     end |> x -> vcat(x...)
     return actual_callbacks
 end
-
-build_callbacks(::MDCProblem{DiffCost{typeof(loss),typeof(lossgrad)},Vector{Float64},Vector{Float64},Float64,Tuple{Float64,Float64}}, ::Vector{CallbackCallable})

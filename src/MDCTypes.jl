@@ -1,9 +1,26 @@
 abstract type CurveProblem end
 abstract type CurveModifier end
+abstract type WhatJump <: CurveModifier end
+abstract type WhatDynamics <: CurveModifier end
 
-struct JumpStart{F <: AbstractFloat} <: CurveModifier
+struct JumpStart{F <: AbstractFloat} <: WhatJump
     jumpsize::F
 end
+struct ZeroStart <: WhatJump end
+
+function make_spans(c::CurveProblem, span)
+    return make_spans(c::CurveProblem, span, isjumped(c))
+end
+
+
+struct MDCDynamics <: WhatDynamics end
+
+dynamics(c::CurveProblem) = dynamics(c::CurveProblem, whatdynamics(c))
+build_cond(c::CurveProblem, r, tol) = build_cond(c, r, tol, whatdynamics(c))
+dHdu_residual(c::CurveProblem, u, t, p) = dHdu_residual(c, u, t, p, whatdynamics(c))
+build_affect(c::CurveProblem, affect) = build_affect(c, affect, whatdynamics(c))
+
+
 
 
 """

@@ -20,7 +20,7 @@ nom_sol = solve(nom_prob, Tsit5()) # solve
 ## Model features of interest are mean prey population, and max predator population (over time)
 function features(p)
     prob = remake(nom_prob; p=p)
-    sol = solve(prob, Tsit5(); saveat=t)
+    sol = solve(prob, Vern9(); saveat=t)
     return [mean(sol[1,:]), maximum(sol[2,:])]
 end
 
@@ -53,7 +53,7 @@ The small eigenvalues of the Hessian are one easy way of defining these directio
 hess0 = ForwardDiff.hessian(loss, p)
 ev(i) = -eigen(hess0).vectors[:,i]
 
-init_dir = ev(which_dir); momentum = 0.1 ; span = (0., 15.)
+init_dir = ev(which_dir); momentum = 1. ; span = (0., 15.)
 curve_prob = MDCProblem(cost, p, init_dir, momentum, span)
 
 # rr = map(1:2) do i
@@ -64,6 +64,10 @@ cb = [
     ParameterBounds([1,3], [-10.,-10.], [10.,10.])
     ]
 
+cb = [
+    Verbose([CurveDistance(0.1:1:10), HamiltonianResidual(2.3:4:10)])
+    ]
+
 # don't make the user do (curve_prob...) for Verbose
 # make MomentumReadjustment 
 
@@ -71,7 +75,6 @@ cb = [
 
 # return cost_trajectory(mdc, mdc.sol.t) |> mean, cost_trajectory(mdc2, mdc2.sol.t) |> mean
 # end
-
 
 # function sol_at_p(p)
 #     prob = remake(nom_prob; p=p)

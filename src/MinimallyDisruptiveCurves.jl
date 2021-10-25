@@ -26,7 +26,7 @@ include("evolve.jl")
 export DiffCost, make_fd_differentiable, l2_hessian
 
 export CurveProblem, specify_curve, evolve, trajectory, costate_trajectory
-export MDCProblem, MDCProblemJumpStart, JumpStart
+export MDCProblem, MDCProblemJumpStart, JumpStart, jumpstart
 
 
 export TransformationStructure, logabs_transform, bias_transform, transform_problem, transform_ODESystem, only_free_params, fix_params, transform_cost

@@ -63,23 +63,36 @@ nom_sol = solve(prob1, Tsit5())
 lossf(sol) = sum([sum(abs2, el1 - el2) for (el1, el2) in zip(sol(tsteps).u, nom_sol(tsteps).u) ])
 
 nom_cost = build_loss_objective(prob1, Tsit5(), lossf; mpg_autodiff=true)
-
 log_cost = build_loss_objective(log_prob1, Tsit5(), lossf; mpg_autodiff=true)
 
 @test nom_cost(p0) == log_cost(log.(p0))
 
 tr_cost, newp0 = transform_cost(nom_cost, p0, tr)
 @test tr_cost(newp0) == log_cost(log.(p0))
-
 grad_holder = deepcopy(p0)
+g2 = deepcopy(grad_holder)
+""" 
+test that summing losses works
+"""
+ll = sum_losses([nom_cost,nom_cost], p0)
+@test ll(p0 .+ 1., grad_holder) == 2nom_cost(p0 .+1, g2)
+@test grad_holder == 2g2
+
+"""
+test gradients of cost functions are zero at minimum as a proxy for correctness of their gradients
+"""
+
 for el in (log_cost, tr_cost)
     el(newp0, grad_holder)
     @test norm(grad_holder) < 1e-3 # 0 gradient at minimum
 end
 
+"""
+test that mdc curve evolves, and listens to mdc_callbacks
+"""
 H0 = ForwardDiff.hessian(tr_cost, newp0)
 mom = 1. 
-span = (-10., 10.);
+span = (-1., 1.);
 
 newdp0 = (eigen(H0)).vectors[:, 1]
 
@@ -92,6 +105,15 @@ cb = [
 
 @time mdc = evolve(eprob, Tsit5; mdc_callback=cb);
 
+"""
+check mdc works with mdc_callback vector of subtype T <: CallbackCallable, strict subtype.
+"""
+
+cb = [
+    Verbose([CurveDistance(0.1:1:10), HamiltonianResidual(2.3:4:10)])
+    ]
+
+@time mdc = evolve(eprob, Tsit5; mdc_callback=cb);
 
 """
  test MDC works and gives reasonable output
@@ -116,3 +138,11 @@ to_fix = ["c"]
 trf = fix_params(last.(ps), get_name_ids(ps, to_fix))
 de = MinimallyDisruptiveCurves.transform_ODESystem(od, trf)
 @test length(ModelingToolkit.get_ps(de)) == 2
+
+
+"""
+test jumpstarting works
+"""
+jprob = jumpstart(eprob, 1e-2, true)
+mdcj = evolve(jprob, Tsit5; mdc_callback=cb);
+@test log_cost(mdcj.sol[1][1:3]) < 1e-3

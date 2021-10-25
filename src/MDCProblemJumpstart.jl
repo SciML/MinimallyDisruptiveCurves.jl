@@ -118,7 +118,7 @@ function get_initial_velocity(c::MDCProblemJumpStart)
         new_dp0 = -∇C/(norm(∇C))
     else  
         μ₂ = dot(∇C, y) / sum(abs2,y)
-        x = μ₂y - ∇C; nx = norm(x)
+        x = μ₂*y - ∇C; nx = norm(x)
         new_dp0 = x/nx
     end
     if c.cost(new_p0 + 0.001new_dp0) > c.cost(new_p0 + 0.001c.dp0)

@@ -2,12 +2,13 @@ module MinimallyDisruptiveCurves
 
 using SciMLBase, DiffEqCallbacks, OrdinaryDiffEq
 using FiniteDiff, LinearAlgebra, ModelingToolkit, ForwardDiff
-using RecipesBase
+using RecipesBase, ThreadsX
 
 
 # import ModelingToolkit: modelingtoolkitize
 include("MDCTypes.jl")
 include("MDCProblem.jl")
+include("MDCProblemJumpstart.jl")
 include("MDCSolution.jl")
 include("utilities/loss_algebra.jl")
 include("utilities/extra_loss_functions.jl")
@@ -24,7 +25,8 @@ include("evolve.jl")
 
 export DiffCost, make_fd_differentiable, l2_hessian
 
-export CurveProblem, specify_curve, evolve, trajectory, costate_trajectory, MDCProblem
+export CurveProblem, specify_curve, evolve, trajectory, costate_trajectory
+export MDCProblem, MDCProblemJumpStart, JumpStart, jumpstart
 
 
 export TransformationStructure, logabs_transform, bias_transform, transform_problem, transform_ODESystem, only_free_params, fix_params, transform_cost

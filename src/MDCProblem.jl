@@ -17,6 +17,8 @@ struct MDCProblem{A,B,C,D,E} <: CurveProblem
         new{A,B,C,D,E}(a, b, c, d, e)
     end
 end
+isjumped(c::MDCProblem) = ZeroStart()
+whatdynamics(c::MDCProblem) = MDCDynamics()
 
 num_params(c::CurveProblem) = length(c.p0)
 param_template(c::CurveProblem) = deepcopy(c.p0)
@@ -70,7 +72,7 @@ end
 - makes sure span of curve is increasing.
 - if the span crosses zero, then returns two separate spans. evolve then runs two curves in parallel, going backwards/forwards from zero.
 """
-function make_spans(c::MDCProblem, span)
+function make_spans(c::CurveProblem, span, ::ZeroStart)
     (span[1] > span[2]) && error("make your curve span monotone increasing")
     if (span[2] > 0) && (span[1] < 0)
         spans = ((0., span[1]), (0., span[2]))
@@ -79,6 +81,9 @@ function make_spans(c::MDCProblem, span)
     end
     return spans
 end
+
+
+
 
 """
     initial_costate(c::MDCProblem)
@@ -101,7 +106,7 @@ end
 """
 Generate vector field for MD curve, as specified by MDCProblem
 """
-function dynamics(c::MDCProblem)
+function dynamics(c::CurveProblem, ::MDCDynamics)
     cost = c.cost
     ∇C = param_template(c)
     N = num_params(c)
@@ -129,7 +134,7 @@ res = λ  + 2 * μ2 * du[1:N]
 """
 Callback to stop MD Curve evolving if cost > momentum
 """
-function (t::TerminalCond)(c::MDCProblem)
+function (t::TerminalCond)(c::CurveProblem)
     cost = c.cost
     H = c.momentum
     N = num_params(c)
@@ -151,7 +156,7 @@ cond = build_cond(c, cnd, momentum_tol)
     return DiscreteCallback(cond, affect!)
 end
 
-function build_cond(c::MDCProblem, ::ResidualCondition, tol)
+    function build_cond(c::CurveProblem, ::ResidualCondition, tol, ::MDCDynamics)
     N = num_params(c)
     H = c.momentum
     θ₀ = initial_params(c)
@@ -159,7 +164,7 @@ function build_cond(c::MDCProblem, ::ResidualCondition, tol)
 
     function rescond(u, t, integ)
         absres = dHdu_residual(c, u, t, dθ) 
-absres > tol ? begin
+        absres > tol ? begin
 # @info "applying readjustment at t=$t, |res| = $absres"
             return true
         end : return false
@@ -167,7 +172,7 @@ absres > tol ? begin
     return rescond
 end
     
-function build_cond(c::MDCProblem, ::CostCondition, tol)
+function build_cond(c::CurveProblem, ::CostCondition, tol)
     N = num_params(c) 
     function costcond(u, t, integ)
          (c.cost(u[1:N]) > tol) ? (return true) : (return false)
@@ -184,7 +189,7 @@ end
     dHdu_residual(c::MDCProblem, u, t, dθ)
 Checks dHdu residual (u deriv of Hamiltonian). Returns true if abs(residual) is greater than some tolerance (it should be zero)
 """
-    function dHdu_residual(c::MDCProblem, u, t, dθ)
+    function dHdu_residual(c::CurveProblem, u, t, dθ, ::MDCDynamics)
     N = num_params(c)
     H = c.momentum
     θ₀ = initial_params(c)
@@ -192,7 +197,7 @@ Checks dHdu residual (u deriv of Hamiltonian). Returns true if abs(residual) is 
     θ = u[1:N] 
     λ = u[N + 1:end]
     μ2 = (c.cost(θ) - H) / 2.
-μ1 = t > 1e-3 ?  (λ' * λ - 4 * μ2^2 ) / (λ' * (θ - θ₀)) : 0.
+    μ1 = t > 1e-3 ?  (λ' * λ - 4 * μ2^2 ) / (λ' * (θ - θ₀)) : 0.
     dθ = (-λ + μ1 * (θ - θ₀)) / (2 * μ2)
     dθ /= (sqrt(sum((dθ).^2))) 
     return sum(abs.(λ + 2 * μ2 * dθ))
@@ -205,7 +210,7 @@ Resets costate to undo effect of cumulative numerical error. Specifically, finds
 
 *I wanted to put dθ[:] = ... here instead of dθ = ... . Somehow the output of the MDC changes each time if I do that, there is a dirty state being transmitted. But I don't at all see how from the code. Figure out.*
 """
-function build_affect(c::MDCProblem, ::CostateAffect)
+function build_affect(c::CurveProblem, ::CostateAffect, ::MDCDynamics)
     N = num_params(c)
     H = c.momentum
     θ₀ = initial_params(c)
@@ -214,11 +219,11 @@ function build_affect(c::MDCProblem, ::CostateAffect)
         θ = integ.u[1:N] # current parameter vector
         λ = integ.u[N + 1:end] # current costate vector 
         μ2 = (c.cost(θ) - H) / 2
-    μ1 = integ.t > 1e-3 ?  (λ' * λ - 4 * μ2^2 ) / (λ' * (θ - θ₀)) : 0. 
+        μ1 = integ.t > 1e-3 ?  (λ' * λ - 4 * μ2^2 ) / (λ' * (θ - θ₀)) : 0. 
         dθ = (-λ + μ1 * (θ - θ₀)) / (2 * μ2) 
         dθ /= (sqrt(sum((dθ).^2)))
-    integ.u[N + 1:end] =  -2 * μ2 * dθ
-return integ
+        integ.u[N + 1:end] =  -2 * μ2 * dθ
+        return integ
     end
     return integ -> reset_costate!(integ, dp)
 end
@@ -231,11 +236,11 @@ min C(θ) such that norm(θ - θ₀)^2 = K where K is current distance
 we will do this with unconstrained optimisation and lagrange multipliers
 ideally would have an inequality constraint >=K. But Optim.jl doesn't support this
 """
-function build_affect(c::MDCProblem, ::StateAffect)
-        N = num_params(c)
+function build_affect(c::CurveProblem, ::StateAffect, ::MDCDynamics)
+    N = num_params(c)
     H = c.momentum
     cost = c.cost
-        θ₀ = initial_params(c)
+    θ₀ = initial_params(c)
     dp = param_template(c)
     _reset_costate! = build_affect(c, CostateAffect())
     function reset_state!(integ, dθ)
@@ -243,21 +248,20 @@ function build_affect(c::MDCProblem, ::StateAffect)
         println(K)
         function constr(x) # constraint func: g = 0
             return K - sum((x - θ₀).^2)
-            end
+        end
             
         function L(x)
             θ, λ = x[1:end - 1], x[end]
             return cost(θ) + λ * constr(θ)
         end
         gc = deepcopy(θ₀)
-            function L(x, g)
+        function L(x, g)
             θ, λ = x[1:end - 1], x[end]
-        C = cost(θ, dθ) # dθ is just an arbitrary pre-allocation
+            C = cost(θ, dθ) # dθ is just an arbitrary pre-allocation
             cstr = constr(θ)
             g[1:end - 1] = gc + 2 * λ * (θ - θ₀)
             g[end] = cstr
             return C + λ * cstr
-            return 
         end
         g = zeros(N + 1)
         # lagr = L(cat(θ₀.+1., 0., dims=1), g)
@@ -268,22 +272,22 @@ function build_affect(c::MDCProblem, ::StateAffect)
         C0 = cost(θ₀)
         @info "cost after readjustment is $(opt.minimum). cost before readjustment was $C0"
         (opt.ls_success == true) && (integ.u[1:N] = opt.minimizer[1:N])
-    integ = _reset_costate!(integ, dθ)
-return integ
+        integ = _reset_costate!(integ, dθ)
+        return integ
 end
     return integ -> reset_state!(integ, dp)
 end
 
 
 
-function build_callbacks(c::MDCProblem, callbacks::SciMLBase.DECallback)
+function build_callbacks(c::CurveProblem, callbacks::SciMLBase.DECallback)
     # DECallback supertype includes CallbackSet
     return CallbackSet(callback)
 end
 
-build_callbacks(c, n::Nothing) = nothing
+build_callbacks(c::CurveProblem, n::Nothing) = nothing
     
-function build_callbacks(c::MDCProblem, mdc_callbacks::Vector{T}, mtol) where T <: CallbackCallable
+function build_callbacks(c::CurveProblem, mdc_callbacks::Vector{T}, mtol::Number) where T <: CallbackCallable
         
     if !any(x -> typeof(x) <: MomentumReadjustment, mdc_callbacks)
         push!(mdc_callbacks, MomentumReadjustment(mtol))

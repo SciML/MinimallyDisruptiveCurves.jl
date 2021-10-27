@@ -151,24 +151,19 @@ function readjustment(c::CurveProblem, cnd::ConditionType, aff::AffectType, mome
     if isnan(momentum_tol)
         return nothing
     end
-cond = build_cond(c, cnd, momentum_tol)
+    cond = build_cond(c, cnd, momentum_tol)
     affect! = build_affect(c, aff)
     return DiscreteCallback(cond, affect!)
 end
 
     function build_cond(c::CurveProblem, ::ResidualCondition, tol, ::MDCDynamics)
-    N = num_params(c)
-    H = c.momentum
-    θ₀ = initial_params(c)
-    dθ = param_template(c)
-
-    function rescond(u, t, integ)
-        absres = dHdu_residual(c, u, t, dθ) 
-        absres > tol ? begin
-# @info "applying readjustment at t=$t, |res| = $absres"
-            return true
-        end : return false
-    end
+        function rescond(u, t, integ)
+            absres = dHdu_residual(c, u, t, integ) 
+            absres > tol ? begin
+            # @info "applying readjustment at t=$t, |res| = $absres"
+                return true
+            end : return false
+        end
     return rescond
 end
     
@@ -189,7 +184,7 @@ end
     dHdu_residual(c::MDCProblem, u, t, dθ)
 Checks dHdu residual (u deriv of Hamiltonian). Returns true if abs(residual) is greater than some tolerance (it should be zero)
 """
-    function dHdu_residual(c::CurveProblem, u, t, dθ, ::MDCDynamics)
+function dHdu_residual(c::CurveProblem, u, t, integ, ::MDCDynamics)
     N = num_params(c)
     H = c.momentum
     θ₀ = initial_params(c)
@@ -198,6 +193,8 @@ Checks dHdu residual (u deriv of Hamiltonian). Returns true if abs(residual) is 
     λ = u[N + 1:end]
     μ2 = (c.cost(θ) - H) / 2.
     μ1 = t > 1e-3 ?  (λ' * λ - 4 * μ2^2 ) / (λ' * (θ - θ₀)) : 0.
+
+    # dθ = SciMLBase.get_tmp_cache(integ)[1][1:N]
     dθ = (-λ + μ1 * (θ - θ₀)) / (2 * μ2)
     dθ /= (sqrt(sum((dθ).^2))) 
     return sum(abs.(λ + 2 * μ2 * dθ))
@@ -219,7 +216,8 @@ function build_affect(c::CurveProblem, ::CostateAffect, ::MDCDynamics)
         θ = integ.u[1:N] # current parameter vector
         λ = integ.u[N + 1:end] # current costate vector 
         μ2 = (c.cost(θ) - H) / 2
-        μ1 = integ.t > 1e-3 ?  (λ' * λ - 4 * μ2^2 ) / (λ' * (θ - θ₀)) : 0. 
+        μ1 = integ.t > 1e-3 ?  (λ' * λ - 4 * μ2^2 ) / (λ' * (θ - θ₀)) : 0.
+        # dθ = SciMLBase.get_tmp_cache(integ)[1][1:N] 
         dθ = (-λ + μ1 * (θ - θ₀)) / (2 * μ2) 
         dθ /= (sqrt(sum((dθ).^2)))
         integ.u[N + 1:end] =  -2 * μ2 * dθ
@@ -244,7 +242,7 @@ function build_affect(c::CurveProblem, ::StateAffect, ::MDCDynamics)
     dp = param_template(c)
     _reset_costate! = build_affect(c, CostateAffect())
     function reset_state!(integ, dθ)
-        K = sum((integ.u[1:N] - θ₀).^2)
+            K = sum((integ.u[1:N] - θ₀).^2)
         println(K)
         function constr(x) # constraint func: g = 0
             return K - sum((x - θ₀).^2)
@@ -264,18 +262,14 @@ function build_affect(c::CurveProblem, ::StateAffect, ::MDCDynamics)
             return C + λ * cstr
         end
         g = zeros(N + 1)
-        # lagr = L(cat(θ₀.+1., 0., dims=1), g)
-        # println("new gradient is $g")
-        # println("Lagrangian is $lagr")
-        # println("θ is ")
-        opt = optimize(L, cat(integ.u[1:N], 0., dims=1), LBFGS())
+    opt = optimize(L, cat(integ.u[1:N], 0., dims=1), LBFGS())
         C0 = cost(θ₀)
         @info "cost after readjustment is $(opt.minimum). cost before readjustment was $C0"
         (opt.ls_success == true) && (integ.u[1:N] = opt.minimizer[1:N])
         integ = _reset_costate!(integ, dθ)
         return integ
 end
-    return integ -> reset_state!(integ, dp)
+return integ -> reset_state!(integ, dp)
 end
 
 
@@ -283,8 +277,8 @@ end
 function build_callbacks(c::CurveProblem, callbacks::SciMLBase.DECallback)
     # DECallback supertype includes CallbackSet
     return CallbackSet(callback)
-end
-
+    end
+    
 build_callbacks(c::CurveProblem, n::Nothing) = nothing
     
 function build_callbacks(c::CurveProblem, mdc_callbacks::Vector{T}, mtol::Number) where T <: CallbackCallable

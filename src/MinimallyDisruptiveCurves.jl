@@ -10,6 +10,7 @@ include("MDCTypes.jl")
 include("MDCProblem.jl")
 include("MDCProblemJumpstart.jl")
 include("MDCSolution.jl")
+include("plotting_utilities.jl")
 include("utilities/loss_algebra.jl")
 include("utilities/extra_loss_functions.jl")
 include("utilities/helper_functions.jl")
@@ -35,5 +36,5 @@ export sum_losses, build_injection_loss, get_name_ids, soft_heaviside, biggest_m
 
 export MomentumReadjustment, StateReadjustment, VerboseOutput, ParameterBounds, CurveInfoSnippet, CurveDistance, HamiltonianResidual, Verbose, TerminalCond, CallbackCallable
 
-export Δ, distances, trajectory, costate_trajectory, add_cost, cost_trajectory
+export Δ, distances, trajectory, costate_trajectory, add_cost, cost_trajectory, output_on_curve
 end # module

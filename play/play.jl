@@ -1,7 +1,7 @@
 using OrdinaryDiffEq, ForwardDiff, Statistics, LinearAlgebra
 
 # which md curve to plot
-which_dir = 2
+which_dir = 1
 
 ## define dynamics of differential equation
 function f(du, u, p, t)
@@ -53,7 +53,7 @@ The small eigenvalues of the Hessian are one easy way of defining these directio
 hess0 = ForwardDiff.hessian(loss, p)
 ev(i) = -eigen(hess0).vectors[:,i]
 
-init_dir = ev(which_dir); momentum = 1. ; span = (0., 15.)
+init_dir = ev(which_dir); momentum = 1. ; span = (-15., 15.)
 curve_prob = MDCProblem(cost, p, init_dir, momentum, span)
 
 # rr = map(1:2) do i

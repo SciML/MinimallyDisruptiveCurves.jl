@@ -25,6 +25,7 @@ RecipesBase = "1.1"
 SciMLBase = "1.19"
 SteadyStateDiffEq = "1.6"
 julia = "1.6"
+ThreadsX = "0.1.8"
 
 [extras]
 DiffEqParamEstim = "1130ab10-4a5a-5621-a13d-e4788d82bd4c"

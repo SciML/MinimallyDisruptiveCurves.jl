@@ -26,23 +26,33 @@ end
 
 nom_features = features(p)
 
+## loss function, we can take as l2 difference of features vs nominal features
 function loss(p)
     prob = remake(nom_prob; p=p)
     p_features = features(p)
     loss = sum(abs2, p_features - nom_features)
     return loss
 end
+
+## gradient of loss function
 function lossgrad(p, g)
     g[:] = ForwardDiff.gradient(p) do p
         loss(p)
     end
     return loss(p)
 end
+
+## package the loss and gradient into a DiffCost structure
 cost = DiffCost(loss, lossgrad)
+
 hess0 = ForwardDiff.hessian(loss, p)
 ev(i) = -eigen(hess0).vectors[:,i]
 
 init_dir = ev(which_dir); momentum = 1. ; span = (-15., 15.)
 curve_prob = MDCProblem(cost, p, init_dir, momentum, span)
+
+cb = [
+    Verbose([CurveDistance(0.1:1:10), HamiltonianResidual(0.1:1:10)])
+    ] 
 
 @time mdc = evolve(curve_prob, Tsit5; mdc_callback=cb);

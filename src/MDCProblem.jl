@@ -125,7 +125,7 @@ function dynamics(c::CurveProblem, ::MDCDynamics)
         du[1:N] /= (sqrt(sum((du[1:N]).^2)))
         damping_constant = (λ' * du[1:N]) / (H - C)  # theoretically = 1 but not numerically
         du[N + 1:end] = @. (μ1 * du[1:N] - ∇C) * damping_constant # ie dλ
-res = λ  + 2 * μ2 * du[1:N]
+        #res = λ  + 2 * μ2 * du[1:N]
         return nothing
     end
     return upd
@@ -157,8 +157,10 @@ function readjustment(c::CurveProblem, cnd::ConditionType, aff::AffectType, mome
 end
 
     function build_cond(c::CurveProblem, ::ResidualCondition, tol, ::MDCDynamics)
+        N = num_params(c)
         function rescond(u, t, integ)
-            absres = dHdu_residual(c, u, t, integ) 
+            dθ = SciMLBase.get_tmp_cache(integ)[1][1:N]
+            absres = dHdu_residual(c, u, t, dθ) 
             absres > tol ? begin
             # @info "applying readjustment at t=$t, |res| = $absres"
                 return true
@@ -184,7 +186,7 @@ end
     dHdu_residual(c::MDCProblem, u, t, dθ)
 Checks dHdu residual (u deriv of Hamiltonian). Returns true if abs(residual) is greater than some tolerance (it should be zero)
 """
-function dHdu_residual(c::CurveProblem, u, t, integ, ::MDCDynamics)
+function dHdu_residual(c::CurveProblem, u, t, dθ, ::MDCDynamics)
     N = num_params(c)
     H = c.momentum
     θ₀ = initial_params(c)
@@ -195,8 +197,8 @@ function dHdu_residual(c::CurveProblem, u, t, integ, ::MDCDynamics)
     μ1 = t > 1e-3 ?  (λ' * λ - 4 * μ2^2 ) / (λ' * (θ - θ₀)) : 0.
 
     # dθ = SciMLBase.get_tmp_cache(integ)[1][1:N]
-    dθ = (-λ + μ1 * (θ - θ₀)) / (2 * μ2)
-    dθ /= (sqrt(sum((dθ).^2))) 
+    dθ[:] = (-λ + μ1 * (θ - θ₀)) / (2 * μ2)
+    dθ[:] /= (sqrt(sum((dθ).^2))) 
     return sum(abs.(λ + 2 * μ2 * dθ))
 end
 
@@ -211,19 +213,19 @@ function build_affect(c::CurveProblem, ::CostateAffect, ::MDCDynamics)
     N = num_params(c)
     H = c.momentum
     θ₀ = initial_params(c)
-    dp = param_template(c)
-    function reset_costate!(integ, dθ)
+    function reset_costate!(integ)
+        dθ = SciMLBase.get_tmp_cache(integ)[1][1:N]
         θ = integ.u[1:N] # current parameter vector
         λ = integ.u[N + 1:end] # current costate vector 
         μ2 = (c.cost(θ) - H) / 2
         μ1 = integ.t > 1e-3 ?  (λ' * λ - 4 * μ2^2 ) / (λ' * (θ - θ₀)) : 0.
         # dθ = SciMLBase.get_tmp_cache(integ)[1][1:N] 
-        dθ = (-λ + μ1 * (θ - θ₀)) / (2 * μ2) 
-        dθ /= (sqrt(sum((dθ).^2)))
+        dθ[:] = (-λ + μ1 * (θ - θ₀)) / (2 * μ2) 
+        dθ[:] /= (sqrt(sum((dθ).^2)))
         integ.u[N + 1:end] =  -2 * μ2 * dθ
         return integ
     end
-    return integ -> reset_costate!(integ, dp)
+    return integ -> reset_costate!(integ)
 end
 
 

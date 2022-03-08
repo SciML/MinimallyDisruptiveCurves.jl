@@ -1,7 +1,19 @@
+authors = ["Dhruva Venkita Raman"]
 name = "MinimallyDisruptiveCurves"
 uuid = "c6328df5-4af8-4637-a9e9-78ed74a2ae2b"
-authors = ["Dhruva Venkita Raman"]
 version = "0.3.0"
+
+[compat]
+DiffEqCallbacks = "2.16"
+FiniteDiff = "2.8"
+ForwardDiff = "0.10"
+ModelingToolkit = "8.0"
+OrdinaryDiffEq = "6.0"
+RecipesBase = "1.0"
+SciMLBase = "1.19"
+SteadyStateDiffEq = "1.6"
+ThreadsX = "0.1.8"
+julia = "1.6"
 
 [deps]
 DiffEqCallbacks = "459566f4-90b8-5000-8ac3-15dfb0a30def"
@@ -15,19 +27,8 @@ SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 SteadyStateDiffEq = "9672c7b4-1e72-59bd-8a11-6ac3964bc41f"
 ThreadsX = "ac1d9e8a-700a-412c-b207-f0111f4b6c0d"
 
-[compat]
-DiffEqCallbacks = "2.16"
-FiniteDiff = "2.8"
-ForwardDiff = "0.10"
-ModelingToolkit = "6.0"
-OrdinaryDiffEq = "5.31"
-RecipesBase = "1.1"
-SciMLBase = "1.19"
-SteadyStateDiffEq = "1.6"
-julia = "1.6"
-ThreadsX = "0.1.8"
-
 [extras]
+CPUSummary = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"
 DiffEqParamEstim = "1130ab10-4a5a-5621-a13d-e4788d82bd4c"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"

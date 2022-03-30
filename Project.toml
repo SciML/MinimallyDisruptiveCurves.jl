@@ -1,7 +1,7 @@
 authors = ["Dhruva Venkita Raman"]
 name = "MinimallyDisruptiveCurves"
 uuid = "c6328df5-4af8-4637-a9e9-78ed74a2ae2b"
-version = "0.3.0"
+version = "0.3.1"
 
 [compat]
 DiffEqCallbacks = "2.16"

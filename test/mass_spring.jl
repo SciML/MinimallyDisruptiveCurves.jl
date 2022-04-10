@@ -1,5 +1,5 @@
-using ModelingToolkit, OrdinaryDiffEq, DiffEqParamEstim, MinimallyDisruptiveCurves, ForwardDiff, LinearAlgebra, Test
-  
+using ModelingToolkit, OrdinaryDiffEq, ForwardDiff, DiffEqParamEstim, DiffEqCallbacks, LinearAlgebra, Test
+
 function make_model(input)
     @parameters t
     @parameters k, c, m
@@ -8,20 +8,18 @@ function make_model(input)
 
     eqs = [D(pos) ~ vel,
         D(vel) ~ (-1 / m) * (c * vel + k * pos - input(t))
-  ]
+    ]
 
-    ps = [k,c,m] .=>  [2.,1.,4.] 
-    ics = [pos, vel] .=> [1.,0.]
-    od = ODESystem(eqs, t, first.(ics), first.(ps)
-                                 , defaults=merge(Dict(first.(ics) .=> last.(ics))
-                                 , Dict(first.(ps) .=> last.(ps))), name=:mass_spring
-                                 )
-    tspan = (0., 100.)
-  # prob = ODEProblem(od, ics, tspan, ps)
+    ps = [k, c, m] .=> [2.0, 1.0, 4.0]
+    ics = [pos, vel] .=> [1.0, 0.0]
+    od = ODESystem(eqs, t, first.(ics), first.(ps), defaults=merge(Dict(first.(ics) .=> last.(ics)), Dict(first.(ps) .=> last.(ps))), name=:mass_spring
+    )
+    tspan = (0.0, 100.0)
+    # prob = ODEProblem(od, ics, tspan, ps)
     return od, ics, tspan, ps
 end
 
-od, ics, tspan, ps = make_model(t -> 0.)
+od, ics, tspan, ps = make_model(t -> 0.0)
 
 """
 take a log transform of the od parameter space in two ways: at the level of the ODESystem and the level of the ODEProblem
@@ -58,9 +56,9 @@ sol2 = solve(log_prob2, Tsit5())
 """
 check if  log transforming the cost function on od gives the same result as an untransformed cost function on log_od
 """
-tsteps = tspan[1]:1.:tspan[end]
+tsteps = tspan[1]:1.0:tspan[end]
 nom_sol = solve(prob1, Tsit5())
-lossf(sol) = sum([sum(abs2, el1 - el2) for (el1, el2) in zip(sol(tsteps).u, nom_sol(tsteps).u) ])
+lossf(sol) = sum([sum(abs2, el1 - el2) for (el1, el2) in zip(sol(tsteps).u, nom_sol(tsteps).u)])
 
 nom_cost = build_loss_objective(prob1, Tsit5(), lossf; mpg_autodiff=true)
 log_cost = build_loss_objective(log_prob1, Tsit5(), lossf; mpg_autodiff=true)
@@ -71,11 +69,12 @@ tr_cost, newp0 = transform_cost(nom_cost, p0, tr)
 @test tr_cost(newp0) == log_cost(log.(p0))
 grad_holder = deepcopy(p0)
 g2 = deepcopy(grad_holder)
+
 """ 
 test that summing losses works
 """
-ll = sum_losses([nom_cost,nom_cost], p0)
-@test ll(p0 .+ 1., grad_holder) == 2nom_cost(p0 .+1, g2)
+ll = sum_losses([nom_cost, nom_cost], p0)
+@test ll(p0 .+ 1.0, grad_holder) == 2nom_cost(p0 .+ 1, g2)
 @test grad_holder == 2g2
 
 """
@@ -91,19 +90,32 @@ end
 test that mdc curve evolves, and listens to mdc_callbacks
 """
 H0 = ForwardDiff.hessian(tr_cost, newp0)
-mom = 1. 
-span = (-1., 1.);
+mom = 1.0
+span = (-2.0, 1.0);
 
 newdp0 = (eigen(H0)).vectors[:, 1]
 
 eprob = MDCProblem(log_cost, newp0, newdp0, mom, span);
 
 cb = [
-    Verbose([CurveDistance(0.1:1:10), HamiltonianResidual(2.3:4:10)]),
-    ParameterBounds([1,3], [-10.,-10.], [10.,10.])
-    ]
+    Verbose([CurveDistance(0.1:0.1:2.0), HamiltonianResidual(2.3:4:10)]),
+    ParameterBounds([1, 3], [-10.0, -10.0], [10.0, 10.0])
+]
 
 @time mdc = evolve(eprob, Tsit5; mdc_callback=cb);
+
+"""
+check saving callback saves data from interrupted computation. 
+Keyword saved_values holds two objects (for two directions) where states and time points are saved. 
+"""
+
+span_long = (-20.0, 19.0);
+eprob_long = MDCProblem(log_cost, newp0, newdp0, mom, span_long);
+cb = [Verbose([CurveDistance(0.1:0.1:2.0)])]
+
+saved_values = (SavedValues(Float64, Vector{Float64}), SavedValues(Float64, Vector{Float64}))
+mdc = evolve(eprob_long, Tsit5; mdc_callback=cb, saved_values);
+#@show saved_values;
 
 """
 check mdc works with mdc_callback vector of subtype T <: CallbackCallable, strict subtype.
@@ -111,7 +123,7 @@ check mdc works with mdc_callback vector of subtype T <: CallbackCallable, stric
 
 cb = [
     Verbose([CurveDistance(0.1:1:10), HamiltonianResidual(2.3:4:10)])
-    ]
+]
 
 @time mdc = evolve(eprob, Tsit5; mdc_callback=cb);
 

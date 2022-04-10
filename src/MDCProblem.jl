@@ -63,6 +63,7 @@ function (c::MDCProblem)()
     u0s = initial_conditions.(cs)
     u0 = map(span -> initial_conditions(c), spans)
     fs = dynamics.(cs)
+
     return ODEProblem.(fs, u0s, spans)
     # return map(sp -> ODEProblem(f, u0, sp), spans)  # make two problems for 2-sided tspan
 end
@@ -272,12 +273,17 @@ end
 return integ -> reset_state!(integ, dp)
 end
 
+function saving_callback(prob::ODEProblem, saved_values::SavedValues)
+    # save states in case simulation is interrupted
+    saving_cb = SavingCallback((u, t, integrator) -> u[1:length(u)÷2], saved_values, saveat=0.0:0.1:prob.tspan[end])
+    return remake(prob, callback=saving_cb)
+end
 
 
 function build_callbacks(c::CurveProblem, callbacks::SciMLBase.DECallback)
     # DECallback supertype includes CallbackSet
-    return CallbackSet(callback)
-    end
+    return CallbackSet(callbacks)
+end
     
 build_callbacks(c::CurveProblem, n::Nothing) = nothing
     

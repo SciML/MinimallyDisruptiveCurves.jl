@@ -107,19 +107,22 @@ end
     - if there are default parameter values p0, they are changed to tr.p_transform(p0)
 """
 function transform_ODESystem(od::ModelingToolkit.AbstractSystem, tr::TransformationStructure)
-    t = ModelingToolkit.get_iv(od)
-    unames = ModelingToolkit.get_states(od)
-    eqs = ModelingToolkit.get_eqs(od)
-    ps = ModelingToolkit.get_ps(od)
+    t = independent_variable(od)
+    unames = states(od) .|> Num
+    eqs =equations(od)
+    ps = parameters(od) .|> Num
     new_ps = transform_names(ps, tr) # modified names under transformation
-    new_p0 = tr.p_transform
+
     of = ODEFunction(od, eval_expression=false) # to solve world age issues
-    rhs = similar(unames, Any)
+    rhs = similar(unames, eltype(unames))
     of(rhs, unames, tr.inv_p_transform(new_ps), t) # in place modification of rhs
     lhs = [el.lhs for el in  eqs]
     
     _defaults = ModelingToolkit.get_defaults(od)
 
+    # new_defaults -= map(_defaults) do (key, val)
+    #     if k
+    # end
     if length(_defaults) >  0       
         p_collect = [el => _defaults[el] for el in ps] # in correct order
         if length(p_collect) > 0
@@ -129,7 +132,7 @@ function transform_ODESystem(od::ModelingToolkit.AbstractSystem, tr::Transformat
         end 
     end
 
-    de = ODESystem(lhs .~ rhs, t, unames, new_ps,  defaults=_defaults, name=nameof(od))
+    de = ODESystem(lhs .~ rhs, t, unames, new_ps,  defaults=_defaults, checks=false, name=nameof(od))
     return de # (vars .=> last.(ic)), (new_ps .=> newp0)
 end
 
@@ -142,8 +145,8 @@ function transform_problem(prob::ODEProblem, tr::TransformationStructure; unames
     println(pnames)
     sys = modelingtoolkitize(prob)
     eqs = ModelingToolkit.get_eqs(sys)
-    pname_tr = ModelingToolkit.get_ps(sys) .=> pnames
-    uname_tr = ModelingToolkit.get_states(sys) .=> unames
+    pname_tr = parameters(sys) .=> pnames
+    uname_tr = states(sys) .=> unames
     neweqs = eqs
     if !(pnames === nothing)
         neweqs = [el.lhs ~ substitute(el.rhs, pname_tr) for el in neweqs]

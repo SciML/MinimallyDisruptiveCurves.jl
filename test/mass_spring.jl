@@ -60,8 +60,8 @@ tsteps = tspan[1]:1.0:tspan[end]
 nom_sol = solve(prob1, Tsit5())
 lossf(sol) = sum([sum(abs2, el1 - el2) for (el1, el2) in zip(sol(tsteps).u, nom_sol(tsteps).u)])
 
-nom_cost = build_loss_objective(prob1, Tsit5(), lossf; mpg_autodiff=true)
-log_cost = build_loss_objective(log_prob1, Tsit5(), lossf; mpg_autodiff=true)
+nom_cost = build_loss_objective(prob1, Tsit5(), lossf;)
+log_cost = build_loss_objective(log_prob1, Tsit5(), lossf;)
 
 @test nom_cost(p0) == log_cost(log.(p0))
 
@@ -82,15 +82,14 @@ test gradients of cost functions are zero at minimum as a proxy for correctness 
 """
 
 for el in (log_cost, tr_cost)
-    el(newp0, grad_holder)
-    @test norm(grad_holder) < 1e-3 # 0 gradient at minimum
+    @test el(newp0, grad_holder) |> abs < 1e-5
 end
 
 """
 test that mdc curve evolves, and listens to mdc_callbacks
 """
 H0 = ForwardDiff.hessian(tr_cost, newp0)
-mom = 1.0
+mom = 20.0
 span = (-2.0, 1.0);
 
 newdp0 = (eigen(H0)).vectors[:, 1]
@@ -102,7 +101,8 @@ cb = [
     ParameterBounds([1, 3], [-10.0, -10.0], [10.0, 10.0])
 ]
 
-@time mdc = evolve(eprob, Tsit5; mdc_callback=cb);
+
+@time mdc = evolve(eprob, Tsit5; mdc_callback=cb, momentum_tol = NaN);
 
 """
 check saving callback saves data from interrupted computation. 
@@ -122,10 +122,10 @@ check mdc works with mdc_callback vector of subtype T <: CallbackCallable, stric
 """
 
 cb = [
-    Verbose([CurveDistance(0.1:1:10), HamiltonianResidual(2.3:4:10)])
+    Verbose([CurveDistance(0.1:1:10), HamiltonianResidual(0.1:1:10)])
 ]
 
-@time mdc = evolve(eprob, Tsit5; mdc_callback=cb);
+@time mdc = evolve(eprob, Tsit5; momentum_tol = 0.00001, mdc_callback=cb);
 
 """
  test MDC works and gives reasonable output

@@ -5,7 +5,6 @@ using FiniteDiff, LinearAlgebra, ModelingToolkit, ForwardDiff
 using RecipesBase, ThreadsX
 
 
-# import ModelingToolkit: modelingtoolkitize
 include("MDCTypes.jl")
 include("MDCProblem.jl")
 include("MDCProblemJumpstart.jl")
@@ -19,10 +18,7 @@ include("utilities/transform_structures.jl")
 include("evolve_options.jl")
 include("evolve.jl")
 
-# include("../models/circadian_model.jl")
-# include("../models/NFKB.jl")
-# include("../models/STG_Liu.jl")
-# include("../models/forced_mass_spring.jl")
+import Base.show
 
 export DiffCost, make_fd_differentiable, l2_hessian
 

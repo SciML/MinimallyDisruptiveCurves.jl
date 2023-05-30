@@ -298,3 +298,30 @@ function build_callbacks(c::CurveProblem, mdc_callbacks::Vector{T}, mtol::Number
     end |> x -> vcat(x...)
     return actual_callbacks
 end
+
+
+function Base.summary(io::IO, prob::MDCProblem)
+    type_color, no_color = SciMLBase.get_colorizers(io)
+    print(io,
+        type_color, nameof(typeof(prob)),
+        no_color, " with uType ",
+        type_color, typeof(prob.p0),
+        no_color, " and tType ",
+        type_color,
+        typeof(prob.tspan) <: Function ?
+        "Unknown" : (prob.tspan === nothing ?
+         "Nothing" : typeof(prob.tspan[1])),
+        no_color,
+        " holding cost function of type ", type_color, nameof(typeof(prob.cost)), no_color
+        )
+end
+
+function Base.show(io::IO, mime::MIME"text/plain", A::MDCProblem)
+    type_color, no_color = SciMLBase.get_colorizers(io)
+    summary(io, A)
+    println(io)
+    print(io, "timespan: ", A.tspan, "\n")
+    print(io, "momentum: ", A.momentum, "\n" )
+    print(io, "Initial parameters p0: ", A.p0, "\n")
+    print(io, "Initial parameter direction dp0: ", A.dp0, "\n")
+end

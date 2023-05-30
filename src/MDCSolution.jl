@@ -69,3 +69,9 @@ function cost_trajectory(mdc::MDCSolution, ts)
     end
 end
 
+
+
+
+function Base.show(io::IO, m::MIME"text/plain", M::MDCSolution)
+    show(io, m, M.sol)
+end

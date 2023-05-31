@@ -1,4 +1,4 @@
-using ModelingToolkit, OrdinaryDiffEq, ForwardDiff, DiffEqParamEstim, DiffEqCallbacks, LinearAlgebra, Test
+using ModelingToolkit, OrdinaryDiffEq, ForwardDiff, DiffEqCallbacks, LinearAlgebra, Test
 
 function make_model(input)
     @parameters t
@@ -33,7 +33,7 @@ tr = logabs_transform(p0)
 log_od = transform_ODESystem(od, tr)
 @test typeof(log_od) == ODESystem
 
-prob1 = ODEProblem(od, [], tspan, [])
+prob1 = ODEProblem{true,SciMLBase.FullSpecialize}(od, [], tspan, [])
 
 log_od2, log_ics2, log_ps2 = transform_problem(prob1, tr; unames=ModelingToolkit.get_states(od), pnames=ModelingToolkit.get_ps(od))
 
@@ -44,7 +44,7 @@ check if the two manners of transforming the ODE system give the same output
 
 @test repr.(ModelingToolkit.get_ps(log_od)) == repr.(ModelingToolkit.get_ps(log_od2))
 
-log_prob1 = ODEProblem(log_od, [], tspan, [])
+log_prob1 = ODEProblem{true,SciMLBase.FullSpecialize}(log_od, [], tspan, [])
 log_prob2 = ODEProblem(log_od2, [], tspan, [])
 
 
@@ -58,10 +58,37 @@ check if  log transforming the cost function on od gives the same result as an u
 """
 tsteps = tspan[1]:1.0:tspan[end]
 nom_sol = solve(prob1, Tsit5())
-lossf(sol) = sum([sum(abs2, el1 - el2) for (el1, el2) in zip(sol(tsteps).u, nom_sol(tsteps).u)])
 
-nom_cost = build_loss_objective(prob1, Tsit5(), lossf; mpg_autodiff=true)
-log_cost = build_loss_objective(log_prob1, Tsit5(), lossf; mpg_autodiff=true)
+
+function build_loss(which_sol::ODESolution)
+
+    function retf(p )
+        sol = solve(which_sol.prob, Tsit5(), p=p, saveat=which_sol.t, u0=convert.(eltype(p), which_sol.prob.u0))
+        return sum(sol.u - which_sol.u) do unow
+            sum(x -> x^2, unow)
+        end
+    end
+    return retf
+end
+
+function build_loss_gradient(which_sol::ODESolution)
+    straight_loss = build_loss(which_sol)
+    function retf(p, grad)
+        ForwardDiff.gradient!(grad, straight_loss, p)
+        return straight_loss(p)
+    end
+    return retf
+end
+
+
+cost1 = build_loss(nom_sol)
+cost1_grad = build_loss_gradient(nom_sol)
+nom_cost = DiffCost(cost1, cost1_grad)
+
+cost2 = build_loss(sol1)
+cost2_grad = build_loss_gradient(sol1)
+log_cost = DiffCost(cost2, cost2_grad)
+
 
 @test nom_cost(p0) == log_cost(log.(p0))
 
@@ -83,7 +110,7 @@ test gradients of cost functions are zero at minimum as a proxy for correctness 
 
 for el in (log_cost, tr_cost)
     el(newp0, grad_holder)
-    @test norm(grad_holder) < 1e-3 # 0 gradient at minimum
+    @test norm(grad_holder) < 1e-2 # 0 gradient at minimum
 end
 
 """

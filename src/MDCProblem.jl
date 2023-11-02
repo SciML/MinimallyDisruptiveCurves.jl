@@ -289,7 +289,7 @@ build_callbacks(c::CurveProblem, n::Nothing) = nothing
     
 function build_callbacks(c::CurveProblem, mdc_callbacks::Vector{T}, mtol::Number) where T <: CallbackCallable
         
-    if !any(x -> typeof(x) <: MomentumReadjustment, mdc_callbacks)
+    if !any(x -> x isa MomentumReadjustment, mdc_callbacks)
         push!(mdc_callbacks, MomentumReadjustment(mtol))
     end
     push!(mdc_callbacks, TerminalCond())
@@ -308,7 +308,7 @@ function Base.summary(io::IO, prob::MDCProblem)
         type_color, typeof(prob.p0),
         no_color, " and tType ",
         type_color,
-        typeof(prob.tspan) <: Function ?
+        prob.tspan isa Function ?
         "Unknown" : (prob.tspan === nothing ?
          "Nothing" : typeof(prob.tspan[1])),
         no_color,

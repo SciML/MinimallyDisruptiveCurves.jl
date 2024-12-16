@@ -108,7 +108,7 @@ end
 """
 function transform_ODESystem(od::ModelingToolkit.AbstractSystem, tr::TransformationStructure)
     t = independent_variable(od)
-    unames = states(od) .|> Num
+    unames = unknowns(od) .|> Num
     eqs =equations(od)
     ps = parameters(od) .|> Num
     new_ps = transform_names(ps, tr) # modified names under transformation
@@ -132,7 +132,7 @@ function transform_ODESystem(od::ModelingToolkit.AbstractSystem, tr::Transformat
         end 
     end
 
-    de = ODESystem(lhs .~ rhs, t, unames, new_ps,  defaults=_defaults, checks=false, name=nameof(od))
+    de = ODESystem(lhs .~ rhs, t, unames, new_ps,  defaults=_defaults, checks=false, name=nameof(od)) |> structural_simplify
     return de # (vars .=> last.(ic)), (new_ps .=> newp0)
 end
 
@@ -146,7 +146,7 @@ function transform_problem(prob::ODEProblem, tr::TransformationStructure; unames
     sys = modelingtoolkitize(prob)
     eqs = ModelingToolkit.get_eqs(sys)
     pname_tr = parameters(sys) .=> pnames
-    uname_tr = states(sys) .=> unames
+    uname_tr = unknowns(sys) .=> unames
     neweqs = eqs
     if !(pnames === nothing)
         neweqs = [el.lhs ~ substitute(el.rhs, pname_tr) for el in neweqs]
@@ -157,12 +157,12 @@ function transform_problem(prob::ODEProblem, tr::TransformationStructure; unames
     if !(unames === nothing)
         neweqs = [substitute(el.lhs, uname_tr) ~ substitute(el.rhs, uname_tr) for el in neweqs]
     else
-        unames = ModelingToolkit.get_states(sys)
+        unames = ModelingToolkit.get_unknowns(sys)
     end
     named_sys = ODESystem(neweqs, ModelingToolkit.get_iv(sys), unames, pnames,  defaults=merge(Dict(unames .=> prob.u0), Dict(pnames .=> prob.p)), name=nameof(sys))   
     newp0 = tr.p_transform(prob.p)
     t_sys = transform_ODESystem(named_sys, tr)
-    return t_sys, (ModelingToolkit.get_states(t_sys) .=> prob.u0),
+    return t_sys, (ModelingToolkit.get_unknowns(t_sys) .=> prob.u0),
      (ModelingToolkit.get_ps(t_sys) .=> newp0)
 end
 

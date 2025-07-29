@@ -51,7 +51,7 @@ specify_curve(;cost=nothing, p0=nothing, dp0=nothing,momentum=nothing,tspan=noth
 
 """
     (c::MDCProblem)()
-returns a tuple of ODEProblems specificed by the MDCProblem. Usually a single ODEProblem. Two are provided if the curve crosses zero, so that one can run two curves in parallel going backwards/forwards from zero
+returns a tuple of ODEProblems specified by the MDCProblem. Usually a single ODEProblem. Two are provided if the curve crosses zero, so that one can run two curves in parallel going backwards/forwards from zero
 """
 function (c::MDCProblem)()
     spans = make_spans(c, c.tspan)

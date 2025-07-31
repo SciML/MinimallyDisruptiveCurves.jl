@@ -9,26 +9,25 @@ function f(du, u, p, t)
     du[2] = -p[3] * u[2] + p[4] * u[1] * u[2] # predator
 end
 
-u0 = [1.0;1.0] # initial populations
+u0 = [1.0; 1.0] # initial populations
 tspan = (0.0, 10.0) # time span to simulate over
-t = collect(range(0, stop=10., length=200)) # time points to measure
-p = [1.5,1.0,3.0,1.0] # initial parameter values
+t = collect(range(0, stop = 10.0, length = 200)) # time points to measure
+p = [1.5, 1.0, 3.0, 1.0] # initial parameter values
 nom_prob = ODEProblem(f, u0, tspan, p) # package as an ODE problem
 nom_sol = solve(nom_prob, Tsit5()) # solve 
 
-
 ## Model features of interest are mean prey population, and max predator population (over time)
 function features(p)
-    prob = remake(nom_prob; p=p)
-    sol = solve(prob, Vern9(); saveat=t)
-    return [mean(sol[1,:]), maximum(sol[2,:])]
+    prob = remake(nom_prob; p = p)
+    sol = solve(prob, Vern9(); saveat = t)
+    return [mean(sol[1, :]), maximum(sol[2, :])]
 end
 
 nom_features = features(p)
 
 ## loss function, we can take as l2 difference of features vs nominal features
 function loss(p)
-    prob = remake(nom_prob; p=p)
+    prob = remake(nom_prob; p = p)
     p_features = features(p)
     loss = sum(abs2, p_features - nom_features)
     return loss
@@ -48,30 +47,32 @@ cost = DiffCost(loss, lossgrad)
 """
 We evaluate the hessian once only, at p.
 Why? to find locally insensitive directions of parameter perturbation
-The small eigenvalues of the Hessian are one easy way of defining these directions 
+The small eigenvalues of the Hessian are one easy way of defining these directions
 """
 hess0 = ForwardDiff.hessian(loss, p)
-ev(i) = -eigen(hess0).vectors[:,i]
+ev(i) = -eigen(hess0).vectors[:, i]
 
-init_dir = ev(which_dir); momentum = 1. ; span = (-15., 15.)
+init_dir = ev(which_dir);
+momentum = 1.0;
+span = (-15.0, 15.0)
 curve_prob = MDCProblem(cost, p, init_dir, momentum, span)
 
 # rr = map(1:2) do i
 # curve_prob_orig = curveProblem(cost, p, init_dir, momentum, span)
- 
+
 cb = [
     Verbose([CurveDistance(0.1:1:10), HamiltonianResidual(2.3:4:10)]),
-    ParameterBounds([1,3], [-10.,-10.], [10.,10.])
-    ]
+    ParameterBounds([1, 3], [-10.0, -10.0], [10.0, 10.0])
+]
 
 cb = [
     Verbose([CurveDistance(0.1:1:10), HamiltonianResidual(2.3:4:10)])
-    ]
+]
 
 # don't make the user do (curve_prob...) for Verbose
 # make MomentumReadjustment 
 
-@time mdc = evolve(curve_prob, Tsit5; mdc_callback=cb);
+@time mdc = evolve(curve_prob, Tsit5; mdc_callback = cb);
 
 # return cost_trajectory(mdc, mdc.sol.t) |> mean, cost_trajectory(mdc2, mdc2.sol.t) |> mean
 # end

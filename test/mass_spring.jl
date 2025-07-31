@@ -12,7 +12,9 @@ function make_model(input)
 
     ps = [k, c, m] .=> [2.0, 1.0, 4.0]
     ics = [pos, vel] .=> [1.0, 0.0]
-    od = ODESystem(eqs, t, first.(ics), first.(ps), defaults=merge(Dict(first.(ics) .=> last.(ics)), Dict(first.(ps) .=> last.(ps))), name=:mass_spring
+    od = ODESystem(eqs, t, first.(ics), first.(ps),
+        defaults = merge(Dict(first.(ics) .=> last.(ics)), Dict(first.(ps) .=> last.(ps))),
+        name = :mass_spring
     )
     tspan = (0.0, 100.0)
     # prob = ODEProblem(od, ics, tspan, ps)
@@ -33,10 +35,11 @@ tr = logabs_transform(p0)
 log_od = transform_ODESystem(od, tr)
 @test typeof(log_od) == ODESystem
 
-prob1 = ODEProblem{true,SciMLBase.FullSpecialize}(od, [], tspan, [])
+prob1 = ODEProblem{true, SciMLBase.FullSpecialize}(od, [], tspan, [])
 
-log_od2, log_ics2, log_ps2 = transform_problem(prob1, tr; unames=ModelingToolkit.get_states(od), pnames=ModelingToolkit.get_ps(od))
-
+log_od2, log_ics2,
+log_ps2 = transform_problem(
+    prob1, tr; unames = ModelingToolkit.get_states(od), pnames = ModelingToolkit.get_ps(od))
 
 """
 check if the two manners of transforming the ODE system give the same output
@@ -44,9 +47,8 @@ check if the two manners of transforming the ODE system give the same output
 
 @test repr.(ModelingToolkit.get_ps(log_od)) == repr.(ModelingToolkit.get_ps(log_od2))
 
-log_prob1 = ODEProblem{true,SciMLBase.FullSpecialize}(log_od, [], tspan, [])
+log_prob1 = ODEProblem{true, SciMLBase.FullSpecialize}(log_od, [], tspan, [])
 log_prob2 = ODEProblem(log_od2, [], tspan, [])
-
 
 sol1 = solve(log_prob1, Tsit5())
 sol2 = solve(log_prob2, Tsit5())
@@ -59,11 +61,10 @@ check if  log transforming the cost function on od gives the same result as an u
 tsteps = tspan[1]:1.0:tspan[end]
 nom_sol = solve(prob1, Tsit5())
 
-
 function build_loss(which_sol::ODESolution)
-
-    function retf(p )
-        sol = solve(which_sol.prob, Tsit5(), p=p, saveat=which_sol.t, u0=convert.(eltype(p), which_sol.prob.u0))
+    function retf(p)
+        sol = solve(which_sol.prob, Tsit5(), p = p, saveat = which_sol.t,
+            u0 = convert.(eltype(p), which_sol.prob.u0))
         return sum(sol.u - which_sol.u) do unow
             sum(x -> x^2, unow)
         end
@@ -80,7 +81,6 @@ function build_loss_gradient(which_sol::ODESolution)
     return retf
 end
 
-
 cost1 = build_loss(nom_sol)
 cost1_grad = build_loss_gradient(nom_sol)
 nom_cost = DiffCost(cost1, cost1_grad)
@@ -89,7 +89,6 @@ cost2 = build_loss(sol1)
 cost2_grad = build_loss_gradient(sol1)
 log_cost = DiffCost(cost2, cost2_grad)
 
-
 @test nom_cost(p0) == log_cost(log.(p0))
 
 tr_cost, newp0 = transform_cost(nom_cost, p0, tr)
@@ -97,7 +96,7 @@ tr_cost, newp0 = transform_cost(nom_cost, p0, tr)
 grad_holder = deepcopy(p0)
 g2 = deepcopy(grad_holder)
 
-""" 
+"""
 test that summing losses works
 """
 ll = sum_losses([nom_cost, nom_cost], p0)
@@ -129,7 +128,7 @@ cb = [
     ParameterBounds([1, 3], [-10.0, -10.0], [10.0, 10.0])
 ]
 
-@time mdc = evolve(eprob, Tsit5; mdc_callback=cb);
+@time mdc = evolve(eprob, Tsit5; mdc_callback = cb);
 
 """
 check saving callback saves data from interrupted computation. 
@@ -140,8 +139,9 @@ span_long = (-20.0, 19.0);
 eprob_long = MDCProblem(log_cost, newp0, newdp0, mom, span_long);
 cb = [Verbose([CurveDistance(0.1:0.1:2.0)])]
 
-saved_values = (SavedValues(Float64, Vector{Float64}), SavedValues(Float64, Vector{Float64}))
-mdc = evolve(eprob_long, Tsit5; mdc_callback=cb, saved_values);
+saved_values = (
+    SavedValues(Float64, Vector{Float64}), SavedValues(Float64, Vector{Float64}))
+mdc = evolve(eprob_long, Tsit5; mdc_callback = cb, saved_values);
 #@show saved_values;
 
 """
@@ -152,7 +152,7 @@ cb = [
     Verbose([CurveDistance(0.1:1:10), HamiltonianResidual(2.3:4:10)])
 ]
 
-@time mdc = evolve(eprob, Tsit5; mdc_callback=cb);
+@time mdc = evolve(eprob, Tsit5; mdc_callback = cb);
 
 """
  test MDC works and gives reasonable output
@@ -161,14 +161,12 @@ cb = [
 @test log_cost(mdc.sol[1][1:3]) < 1e-3
 @test log_cost(mdc.sol[end][1:3]) < 1e-3
 
-
 """
- test injection loss works OK
+test injection loss works OK
 """
 l2 = build_injection_loss(prob1, Tsit5(), tsteps)
 @test l2(p0, grad_holder) == 0
 @test norm(grad_holder) < 1e-5
-
 
 """
 test fixing parameters (i.e. a transformation that changes the number of parameters) works ok
@@ -178,10 +176,9 @@ trf = fix_params(last.(ps), get_name_ids(ps, to_fix))
 de = MinimallyDisruptiveCurves.transform_ODESystem(od, trf)
 @test length(ModelingToolkit.get_ps(de)) == 2
 
-
 """
 test jumpstarting works
 """
 jprob = jumpstart(eprob, 1e-2, true)
-mdcj = evolve(jprob, Tsit5; mdc_callback=cb);
+mdcj = evolve(jprob, Tsit5; mdc_callback = cb);
 @test log_cost(mdcj.sol[1][1:3]) < 1e-3

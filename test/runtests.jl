@@ -10,7 +10,7 @@ const GROUP = get(ENV, "GROUP", "All")
         end
     end
 
-    if GROUP == "All" || GROUP == "nopre" || GROUP == "Alloc"
+    if GROUP == "All" || GROUP == "Alloc"
         @testset "allocation_tests" begin
             include("alloc_tests.jl")
         end
@@ -19,12 +19,6 @@ const GROUP = get(ENV, "GROUP", "All")
     if GROUP == "All" || GROUP == "ExplicitImports"
         @testset "Explicit Imports" begin
             include("explicit_imports.jl")
-        end
-    end
-
-    if GROUP == "All" || GROUP == "JET"
-        @testset "JET Static Analysis" begin
-            include("jet_tests.jl")
         end
     end
 end

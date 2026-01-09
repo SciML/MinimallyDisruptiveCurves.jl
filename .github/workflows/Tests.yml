@@ -25,3 +25,16 @@ jobs:
     with:
       julia-version: "${{ matrix.version }}"
     secrets: "inherit"
+
+  nopre:
+    name: "nopre"
+    strategy:
+      matrix:
+        version:
+          - "1"
+          - "lts"
+    uses: "SciML/.github/.github/workflows/tests.yml@v1"
+    with:
+      julia-version: "${{ matrix.version }}"
+      group: "nopre"
+    secrets: "inherit"

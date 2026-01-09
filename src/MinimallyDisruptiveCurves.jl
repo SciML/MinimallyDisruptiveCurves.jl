@@ -46,4 +46,8 @@ export MomentumReadjustment, StateReadjustment, VerboseOutput, ParameterBounds,
 
 export Δ, distances, trajectory, costate_trajectory, add_cost, cost_trajectory,
     output_on_curve
+
+# Precompilation workload (must be at the end)
+include("precompilation.jl")
+
 end # module

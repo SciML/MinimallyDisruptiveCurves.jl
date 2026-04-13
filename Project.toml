@@ -1,6 +1,6 @@
 name = "MinimallyDisruptiveCurves"
 uuid = "c6328df5-4af8-4637-a9e9-78ed74a2ae2b"
-version = "0.3.4"
+version = "0.3.5"
 authors = ["Dhruva Venkita Raman"]
 
 [deps]
@@ -24,7 +24,7 @@ ModelingToolkit = "8, 9"
 OrdinaryDiffEq = "6, 7"
 PrecompileTools = "1"
 RecipesBase = "1"
-SciMLBase = "2"
+SciMLBase = "2, 3.1"
 SteadyStateDiffEq = "2"
 ThreadsX = "0.1.8"
 julia = "1.10"

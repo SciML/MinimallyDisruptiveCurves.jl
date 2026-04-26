@@ -4,7 +4,7 @@ using DiffEqCallbacks: DiffEqCallbacks, FunctionCallingCallback, PresetTimeCallb
     SavedValues, SavingCallback
 using FiniteDiff: FiniteDiff
 using ForwardDiff: ForwardDiff
-using LinearAlgebra: LinearAlgebra, I, diagm, dot, norm, svd
+using LinearAlgebra: LinearAlgebra, diagm, dot, norm, svd
 using ModelingToolkit: ModelingToolkit, Num, ODEFunction, ODEProblem, ODESystem,
     Variable, equations, independent_variable, modelingtoolkitize,
     parameters, structural_simplify, substitute, unknowns

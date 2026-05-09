@@ -64,7 +64,7 @@ using PrecompileTools: @setup_workload, @compile_workload
 
         # evolve - the main entry point
         # Use a very short span to minimize precompilation time
-        mdc = evolve(eprob, Tsit5; mdc_callback = cb, verbose = false)
+        mdc = evolve(eprob, Tsit5; mdc_callback = cb)
 
         # MDCSolution methods
         _ = trajectory(mdc)

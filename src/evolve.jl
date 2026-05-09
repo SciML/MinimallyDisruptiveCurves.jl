@@ -12,11 +12,11 @@ function evolve(
         (mdc_callback = convert(Vector{CallbackCallable}, mdc_callback))
 
     function merge_sols(ens, p)
-        if length(ens) == 1
-            return ens[1]
-        elseif length(ens) == 2
-            t = cat(-ens[1].t[end:-1:1], ens[2].t, dims = 1)
-            u = cat(ens[1].u[end:-1:1], ens[2].u, dims = 1)
+        if length(ens.u) == 1
+            return ens.u[1]
+        elseif length(ens.u) == 2
+            t = cat(-ens.u[1].t[end:-1:1], ens.u[2].t, dims = 1)
+            u = cat(ens.u[1].u[end:-1:1], ens.u[2].u, dims = 1)
             return SciMLBase.build_solution(p, Tsit5(), t, u)
         end
     end

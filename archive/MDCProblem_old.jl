@@ -27,23 +27,7 @@ num_params(c::CurveProblem) = length(c.p0)
 param_template(c::CurveProblem) = deepcopy(c.p0)
 initial_params(c::CurveProblem) = c.p0
 
-"""
-DEPRECATED. use MDCProblem
-"""
-function curveProblem(a, b, c, d, e)
-    @warn("curveProblem and specify_curve are DEPRECATED. please use MDCProblem (with the same arguments) instead")
-    return MDCProblem(a, b, c, d, e)
-end
 
-"""
-DEPRECATED. use MDCproblem
-"""
-specify_curve(cost, p0, dp0, momentum, tspan) = curveProblem(cost, p0, dp0, momentum, tspan)
-function specify_curve(;
-        cost = nothing, p0 = nothing, dp0 = nothing, momentum = nothing, tspan = nothing
-    )
-    return curveProblem(cost, p0, dp0, momentum, tspan)
-end
 
 """
     Callback to readjust momentum in the case that the numerical residual from the identity dHdu = 0 crosses a user-specified threshold
@@ -171,7 +155,7 @@ function (t::TerminalCond)(c::CurveProblem)
         θ = @view u[1:N]
         return (cost(θ) > H)
     end
-    return DiscreteCallback(condition, terminate!)
+    return DiscreteCallback(condition, SciMLBase.terminate!)
 end
 
 function readjustment(

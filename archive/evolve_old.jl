@@ -33,8 +33,18 @@ function evolve(
 
     e = EnsembleProblem(probs[1], prob_func = prob_func)
     sim = solve(
-        e, Tsit5(), EnsembleThreads(), trajectories = length(probs);
+        e, OrdinaryDiffEq.Tsit5(), EnsembleThreads(), trajectories = length(probs);
         callback = callbacks, kwargs...
     )
     return merge_sols(sim, probs[1]) |> MDCSolution
 end
+
+function evolvenew(
+        c::CurveProblem; mdc_callback = CallbackCallable[],
+        callback = nothing, saved_values = nothing, momentum_tol = 1.0e-3, kwargs...
+    )
+
+ (!(eltype(mdc_callback) == CallbackCallable)) &&
+        (mdc_callback = convert(Vector{CallbackCallable}, mdc_callback))
+
+    end

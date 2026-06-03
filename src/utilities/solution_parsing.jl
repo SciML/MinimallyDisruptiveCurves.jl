@@ -3,7 +3,7 @@ Utilities to find and plot the biggest changing parameters
 """
 
 """
-    find parameter indices of the biggest changing parametesr in the curve
+    find parameter indices of the biggest changing parameters in the curve
 """
 function biggest_movers(mdc::AbstractCurveSolution, num::Integer; rev = false)
     diff = trajectory(mdc)[:, end] - trajectory(mdc)[:, 1]

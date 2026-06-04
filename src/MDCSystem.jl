@@ -7,12 +7,40 @@ struct MDCSystem{T, C, V<:AbstractVector{T}}
     θ₀::V            # Initial parameter vector
     dθ₀::V            # Initial parameter direction
     momentum::T      # H parameter
+    names::Vector{Symbol}
+end
+
+function Base.show(io::IO, ::MIME"text/plain", sys::MDCSystem)
+    print(io, "MDCSystem with ")
+    print(io, "Parameters: ", length(sys.θ₀), ", ")
+    print(io, "Momentum cap (H): ", sys.momentum)
+end
+
+function TransformedCost(core_cost::CostFunction)
+    return TransformedCost(core_cost, TransformChain())
+end
+
+function MDCSystem(raw_cost::CostFunction, θ₀, dθ₀, H; kwargs...)
+    t_cost = TransformedCost(raw_cost)
+    return MDCSystem(t_cost, θ₀, dθ₀, H; kwargs...)
+end
+
+
+function MDCSystem(cost, θ₀, dθ₀, momentum; names = [Symbol("θ_$i") for i in 1:length(θ₀)])
+    return MDCSystem(cost, θ₀, dθ₀, momentum, names)
+end
+
+function MDCSystem(transformed_cost::TransformedCost, θ₀, dθ₀, momentum; names = nothing)
+    N = length(θ₀)
+    initial_names = isnothing(names) ? [Symbol("θ_$i") for i in 1:N] : names
+    operational_names = transform_names(transformed_cost.chain, initial_names)
+    
+    return MDCSystem(transformed_cost, θ₀, dθ₀, momentum, operational_names)
 end
 
 struct MDCWorkspace{V}
     diff_θ::V
     grad_cache::V
-    # We can add internal structural caches here later if needed to make cost completely allocation-free
 end
 
 function MDCWorkspace(sys::MDCSystem)
@@ -27,17 +55,15 @@ struct MDCSpan
     positive::Float64
 end
 
-struct MDCCurve{S}
-    negative_sol::S
-    positive_sol::S
+# New flexible design: positive and negative paths can be completely distinct types
+struct MDCCurve{P, N}
+    positive_sol::P
+    negative_sol::N
 end
+
 
 # ====================================================================
 # --- Initial Conditions Generator ---
-# ====================================================================
-
-# ====================================================================
-# --- Corrected Initial Conditions Generator ---
 # ====================================================================
 
 function initialise_lambda(sys::MDCSystem, ws::MDCWorkspace)
@@ -45,9 +71,6 @@ function initialise_lambda(sys::MDCSystem, ws::MDCWorkspace)
     dθ₀ = sys.dθ₀  # Your user-supplied initial parameter direction
     H = sys.momentum
     
-    # Evaluate the cost function at the initial position.
-    # We still use the workspace cache to hold the initial gradient calculation
-    # just in case downstream steps or callbacks need it warm.
     C = sys.cost(θ₀, ws.grad_cache)
     
     # Safety Check: Total energy (H) must exceed potential energy (C) 
@@ -57,7 +80,6 @@ function initialise_lambda(sys::MDCSystem, ws::MDCWorkspace)
     end
    
    
-    # Let's allocate a type-stable vector and compute it in-place
     λ₀ = similar(θ₀)
     @. λ₀ = (H - C) * dθ₀
     
@@ -68,44 +90,47 @@ end
 # --- ODE Vector Field Factory ---
 # ====================================================================
 
-function vectorfield(sys::MDCSystem, ws::MDCWorkspace)
+function vectorfield(sys::MDCSystem)
     cost = sys.cost
-    grad_cache = ws.grad_cache
-    diff_θ = ws.diff_θ
-
     θ₀ = sys.θ₀
     H = sys.momentum
     N = length(θ₀)
+    chain = cost.chain
+
+    # Allocate simple optimization space caches once per thread closure
+    grad_cache = Vector{eltype(θ₀)}(undef, N)          
+    diff_θ     = Vector{eltype(θ₀)}(undef, N)          
 
     return function f!(du, u, p, t)
-        θ = @view u[1:N]
-        λ = @view u[N+1:end]
-
+        θ  = @view u[1:N]
+        λ  = @view u[N+1:end]
         dθ = @view du[1:N]
         dλ = @view du[N+1:end]
 
         @. diff_θ = θ - θ₀
         dist = sum(abs2, diff_θ)
 
+        # 1. Evaluate the cost function using its original functor layout
+        # This will handle its own forward/pullback cleanly.
         C = cost(θ, grad_cache)
 
+        # --- Standard MDC Core Math ---
         μ2 = (C - H) / 2.0
+        if abs(μ2) < 1e-10; μ2 = sign(μ2) * 1e-10; end
 
         λ_dot_λ = dot(λ, λ)
         λ_dot_diff = dot(λ, diff_θ)
 
-        μ1 = dist > 1e-5 ? (λ_dot_λ - 4.0 * μ2^2) / λ_dot_diff : 0.0
-
+        μ1 = dist > 1e-5 ? (λ_dot_λ - 4.0 * μ2^2) / (λ_dot_diff + 1e-10 * sign(λ_dot_diff)) : 0.0
         inv_2μ2 = 1.0 / (2.0 * μ2)
 
         @. dθ = (-λ + μ1 * diff_θ) * inv_2μ2
 
         dθ_norm = norm(dθ)
-        if dθ_norm > 1e-8
-            @. dθ /= dθ_norm
-        end
+        if dθ_norm > 1e-8; @. dθ /= dθ_norm; end
 
-        damping = dot(λ, dθ) / (H - C + 1e-8)
+        energy_gap = max(1e-6, H - C)
+        damping = dot(λ, dθ) / energy_gap
 
         @. dλ = (μ1 * dθ - grad_cache) * damping
 
@@ -326,11 +351,13 @@ end
 # ====================================================================
 
 function MDCsolve(sys::MDCSystem; span=MDCSpan(-10.0, 10.0), mode=:fast, callback=nothing)
+    # 1. Initialize workspaces and baseline layout
+    # Note: If initialise_lambda modifies ws in-place, it happens sequentially here
+    # before we spawn our parallel integration threads.
     ws = MDCWorkspace(sys)
-    vf! = vectorfield(sys, ws)
-    
     λ₀ = initialise_lambda(sys, ws)
     
+    # 2. Build the unified initial conditions vector [θ₀; λ₀]
     T = eltype(sys.θ₀)
     u0 = Vector{T}(undef, 2 * length(sys.θ₀))
     u0[1:length(sys.θ₀)] .= sys.θ₀
@@ -338,20 +365,35 @@ function MDCsolve(sys::MDCSystem; span=MDCSpan(-10.0, 10.0), mode=:fast, callbac
     
     alg = Tsit5()
 
-    # Default to just the vital catastrophe safety guardrail if nothing is provided. GET RID 
-    cb_to_use = isnothing(callback) ? mdc_safety_callback(sys) : callback
-
     sol_neg = nothing
     sol_pos = nothing
 
-    if span.negative < 0.0
-        prob_neg = ODEProblem(vf!, u0, (0.0, span.negative), sys)
-        sol_neg = solve(prob_neg, alg, callback=cb_to_use)
-    end
+    # 3. Parallel Integration Phase
+    # The @sync block ensures Julia waits for both paths to finish before returning
+    Threads.@sync begin
+        
+        # --- Backward Path Integration (Negative Span) ---
+        if span.negative < 0.0
+            Threads.@spawn begin
+                # Allocate an isolated vectorfield closure containing unique inner cache buffers
+                local_vf_neg! = vectorfield(sys)
+                
+                prob_neg = ODEProblem(local_vf_neg!, u0, (0.0, span.negative), sys)
+                sol_neg = solve(prob_neg, alg, callback=callback)
+            end
+        end
 
-    if span.positive > 0.0
-        prob_pos = ODEProblem(vf!, u0, (0.0, span.positive),sys)
-        sol_pos = solve(prob_pos, alg, callback=cb_to_use)
+        # --- Forward Path Integration (Positive Span) ---
+        if span.positive > 0.0
+            Threads.@spawn begin
+                # Allocate a second isolated vectorfield closure instance to eliminate race conditions
+                local_vf_pos! = vectorfield(sys)
+                
+                prob_pos = ODEProblem(local_vf_pos!, u0, (0.0, span.positive), sys)
+                sol_pos = solve(prob_pos, alg, callback=callback)
+            end
+        end
+        
     end
 
     return MDCCurve(sol_neg, sol_pos)
@@ -364,18 +406,50 @@ Enables continuous interpolation across the split-span trajectory.
 Automatically routes positive arc-lengths to `positive_sol` and negative 
 arc-lengths to `negative_sol`.
 """
-function (curve::MDCCurve)(t::Real)
-    if t >= 0.0
-        if isnothing(curve.positive_sol)
-            error("Attempted to evaluate curve at t = $t, but positive_sol is uninitialized.")
-        end
-        return curve.positive_sol(t)
+function (curve::MDCCurve)(t::Real; type=:all)
+    raw_state = t >= 0.0 ? curve.positive_sol(t) : curve.negative_sol(t)
+    
+    if type == :all
+        return raw_state
+    end
+    
+    N_params = length(raw_state) ÷ 2
+    if type == :parameters || type == :states
+        return raw_state[1:N_params]
+    elseif type == :costates
+        return raw_state[(N_params + 1):end]
     else
-        if isnothing(curve.negative_sol)
-            error("Attempted to evaluate curve at t = $t, but negative_sol is uninitialized.")
-        end
-        # 🌟 FIX: Pass 't' directly as a negative number, 
-        # because negative_sol's time domain natively spans from 0.0 down to -5.0!
-        return curve.negative_sol(t)
+        error("Unknown type filter: :$type. Use :all, :parameters, or :costates.")
+    end
+end
+
+function Base.show(io::IO, ::MIME"text/plain", curve::MDCCurve)
+    # Extract structural constraints safely
+    sample_sol = !isnothing(curve.positive_sol) ? curve.positive_sol : curve.negative_sol
+    if isnothing(sample_sol)
+        print(io, "Empty MDCCurve (uninitialized).")
+        return
+    end
+    
+    sys = sample_sol.prob.p
+    N_params = length(sys.θ₀)
+
+neg_max = !isnothing(curve.negative_sol) ? abs(minimum(curve.negative_sol.t)) : 0.0
+pos_max = !isnothing(curve.positive_sol) ? maximum(curve.positive_sol.t) : 0.0
+
+    println(io, "Minimally Disruptive Curve (MDCCurve)")
+    println(io, "====================================")
+    println(io, "  • Parameter Dimensions : ", N_params)
+    println(io, "  • Explored Span        : [", -neg_max, " ↔ ", pos_max, "] (Arc length)")
+    println(io, "  • Initial Cost (C₀)    : ", round(sys.cost(sys.θ₀), digits=5))
+    println(io, "  • Total Energy (H)     : ", sys.momentum)
+    
+    # Identify the ultimate parameter changes at boundaries
+    state_pos = !isnothing(curve.positive_sol) ? curve.positive_sol.u[end][1:N_params] : sys.θ₀
+    state_neg = !isnothing(curve.negative_sol) ? curve.negative_sol.u[end][1:N_params] : sys.θ₀
+    
+    println(io, "  • Max Parameter Shifts :")
+    for i in 1:N_params
+        println(io, "      θ_$i: [", round(state_neg[i], digits=3), " ↔ ", round(state_pos[i], digits=3), "]")
     end
 end

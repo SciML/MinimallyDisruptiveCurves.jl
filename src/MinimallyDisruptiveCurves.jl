@@ -1,8 +1,9 @@
 module MinimallyDisruptiveCurves
 
-using RecipesBase
+
+using RecipesBase: RecipesBase, @recipe, @series
 using LinearAlgebra: LinearAlgebra, dot, norm
-using OrdinaryDiffEq: CallbackSet, DiscreteCallback, ODEProblem, Tsit5
+using OrdinaryDiffEq: DiscreteCallback, ODEProblem, Tsit5
 import OrdinaryDiffEq: solve
 
 # 2. Grab the specific callback utilities from their native packages
@@ -17,14 +18,16 @@ include("plotting_utilities.jl")
 import Base.show
 
 export MDCsolve
-export AbstractCost, CostFunction, TransformedCost, inverse
-export AbstractTransform, TransformChain, ScaleTransform, LogAbsTransform, FixParams, OnlyFreeParams
-export MDCSystem, MDCWorkspace, vectorfield, ODEProblem, MDCSpan
+export AbstractCost, CostFunction, TransformedCost, inverse, forward, gradient!
+export AbstractTransform, TransformChain, ScaleTransform, LogAbsTransform, FixedParamsTransform, OnlyFreeParamsTransform
+export MDCSystem, MDCWorkspace, vectorfield, ODEProblem, MDCSpan, cost_profile
 
 export mdc_safety_callback, mdc_bounds_callback, mdc_verbose_callbacks
 export mdc_dHdu_residual, mdc_momentum_readjustment
 
-# Precompilation workload (must be at the end)
-# include("precompilation.jl")
+export animate_mdc
+function animate_mdc end
 
+# Precompilation workload (must be at the end)
+include("precompilation.jl")
 end # module

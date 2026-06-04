@@ -175,7 +175,7 @@ end
 
 """
 Transforms a set of parameter names via the name provided in tr
-The output names are ModelingToolkit.Variable types
+The output names are symbolic variables (Num)
 
 # Example
 
@@ -189,7 +189,7 @@ function transform_names(nv, tr::TransformationStructure)
     else
         names = Symbol.(tr.name .* repr.(nv))
     end
-    new_vars = [Num(Variable(el)) for el in names]
+    new_vars = [variable(el) for el in names]
     return new_vars
 end
 

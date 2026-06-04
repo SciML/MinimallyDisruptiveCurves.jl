@@ -6,12 +6,11 @@ using FiniteDiff: FiniteDiff
 using ForwardDiff: ForwardDiff
 using LinearAlgebra: LinearAlgebra, diagm, dot, norm, svd
 using ModelingToolkit: ModelingToolkit, Num, ODEFunction, ODEProblem, ODESystem,
-    Variable, equations, independent_variable, modelingtoolkitize,
-    parameters, structural_simplify, substitute, unknowns
-using OrdinaryDiffEq: OrdinaryDiffEq, CallbackSet, DiscreteCallback, EnsembleProblem,
-    EnsembleThreads, Tsit5, remake, solve, terminate!
+    equations, independent_variable, modelingtoolkitize,
+    parameters, structural_simplify, substitute, unknowns, variable
+using OrdinaryDiffEq: OrdinaryDiffEq, CallbackSet, DiscreteCallback, Tsit5, remake, solve
 using RecipesBase: RecipesBase, @recipe, @series
-using SciMLBase: SciMLBase
+using SciMLBase: SciMLBase, EnsembleProblem, EnsembleThreads, terminate!
 using ThreadsX: ThreadsX
 
 include("MDCTypes.jl")

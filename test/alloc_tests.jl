@@ -2,7 +2,6 @@ using MinimallyDisruptiveCurves
 using LinearAlgebra
 using Test
 using AllocCheck
-
 """
 Allocation tests for performance-critical paths in MinimallyDisruptiveCurves.jl
 `GROUP="Alloc" julia --project -e 'using Pkg; Pkg.test()`
@@ -47,7 +46,7 @@ end
 
     @testset "Dynamics Vector Field Allocations" begin
         allocs = @allocated f!(du, u0, nothing, 0.0)
-        @test allocs  < 100 # sacrificed completely allocation free as cost function evaluation is the major cost.allocs=80 for current version
+        @test allocs  == 0 # sacrificed completely allocation free as cost function evaluation is the major cost.allocs=80 for current version
     end
 
     @testset "Dynamics Functional Correctness" begin
@@ -64,17 +63,17 @@ end
     @testset "TransformedCost Wrap Allocations" begin
         g_buffer = similar(p0)
         
-        # Warmups - Matching your (θ, gθ) functor interface
+        # Calculate N_physical manually for the test workspace
+        N_physical = length(MinimallyDisruptiveCurves.forward(cost.chain, p0))
+        gz_buffer = Vector{eltype(p0)}(undef, N_physical)
+        
+        # Warmups - Matching your performance critical internally invoked layout
         cost(p0)
-        cost(p0, g_buffer)
+        cost(p0, g_buffer, gz_buffer) # Warm up the true 3-arg hot-path
+        @test (@allocated cost(p0)) == 0
 
-        # Test value-only pass
-        @test (@allocated cost(p0)) < 400
-
-        # Test value + gradient pullback pass (θ first, gθ second)
-        @test (@allocated cost(p0, g_buffer)) <800
+        # Test true hot-path value + gradient pullback pass
+        @test (@allocated cost(p0, g_buffer, gz_buffer)) == 0
     end
 
-
-
-end
+end 

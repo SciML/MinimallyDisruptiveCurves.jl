@@ -26,23 +26,19 @@ end
 # Maps optimization parameter θ -> physical space via forward, then evaluates
 (tc::TransformedCost)(θ) = value(tc.cost, forward(tc.chain, θ))
 
-# Value and Gradient evaluation (in-place for gθ)
-function (tc::TransformedCost)(θ, gθ)
-    # 1. Forward pass to the cost function's native physical space
+
+function (tc::TransformedCost)(θ, gθ, gz)
     z = forward(tc.chain, θ)
-    
-    # 2. Compute gradient in the physical space (gz = dL/dz)
-    gz = similar(z) 
     gradient!(tc.cost, gz, z)
-    
-    # 3. Pull back the gradient to the optimization space (g_transformed = dL/dθ)
-    # Uses the optimized forward-cached sweep from transforms.jl
     g_transformed = pullback!(tc.chain, gz, z)
-    
-    # 4. Copy the safely pulled-back gradient into our operational buffer
     gθ .= g_transformed
-    
     return value(tc.cost, z)
 end
 
+# Keep this fallback ONLY for users calling it outside the solver loop
+function (tc::TransformedCost)(θ, gθ)
+    z = forward(tc.chain, θ)
+    gz = similar(z) # Acceptable for one-off manual calls
+    return tc(θ, gθ, gz)
+end
 

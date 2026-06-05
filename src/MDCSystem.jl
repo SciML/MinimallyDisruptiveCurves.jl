@@ -50,9 +50,9 @@ function MDCWorkspace(sys::MDCSystem)
     )
 end
 
-struct MDCSpan
-    negative::Float64
-    positive::Float64
+struct MDCSpan{T<:AbstractFloat}
+    negative::T
+    positive::T
 end
 
 # New flexible design: positive and negative paths can be completely distinct types
@@ -96,45 +96,52 @@ function vectorfield(sys::MDCSystem)
     H = sys.momentum
     N = length(θ₀)
     chain = cost.chain
+    N_physical = length(forward(chain, θ₀))
+
 
     # Allocate simple optimization space caches once per thread closure
     grad_cache = Vector{eltype(θ₀)}(undef, N)          
     diff_θ     = Vector{eltype(θ₀)}(undef, N)          
+    gz_cache   = Vector{eltype(θ₀)}(undef, N_physical)
 
-    return function f!(du, u, p, t)
-        θ  = @view u[1:N]
-        λ  = @view u[N+1:end]
-        dθ = @view du[1:N]
-        dλ = @view du[N+1:end]
+    
+    let grad_cache=grad_cache, gz_cache=gz_cache, diff_θ=diff_θ, N=N, cost=cost, H=H, θ₀=θ₀
+        return function f!(du, u, p, t)
+            θ  = @view u[1:N]
+            λ  = @view u[N+1:end]
+            dθ = @view du[1:N]
+            dλ = @view du[N+1:end]
 
-        @. diff_θ = θ - θ₀
-        dist = sum(abs2, diff_θ)
+            @. diff_θ = θ - θ₀
+            dist = sum(abs2, diff_θ)
 
-        # 1. Evaluate the cost function using its original functor layout
-        # This will handle its own forward/pullback cleanly.
-        C = cost(θ, grad_cache)
+            # 1. Evaluate the cost function using its original functor layout
+            # This will handle its own forward/pullback cleanly.
+            C = cost(θ, grad_cache, gz_cache)
 
-        # --- Standard MDC Core Math ---
-        μ2 = (C - H) / 2.0
-        if abs(μ2) < 1e-10; μ2 = sign(μ2) * 1e-10; end
+            # --- Standard MDC Core Math ---
+            μ2 = (C - H) / 2.0
+            μ2 = (C - H) / 2.0
+            μ2_smooth = sign(μ2) * sqrt(μ2^2 + 1e-20)
 
-        λ_dot_λ = dot(λ, λ)
-        λ_dot_diff = dot(λ, diff_θ)
+            λ_dot_λ = dot(λ, λ)
+            λ_dot_diff = dot(λ, diff_θ)
 
-        μ1 = dist > 1e-5 ? (λ_dot_λ - 4.0 * μ2^2) / (λ_dot_diff + 1e-10 * sign(λ_dot_diff)) : 0.0
-        inv_2μ2 = 1.0 / (2.0 * μ2)
+            μ1 = dist > 1e-5 ? (λ_dot_λ - 4.0 * μ2^2) / (λ_dot_diff + 1e-10 * sign(λ_dot_diff)) : 0.0
+            inv_2μ2 = 1.0 / (2.0 * μ2)
 
-        @. dθ = (-λ + μ1 * diff_θ) * inv_2μ2
+            @. dθ = (-λ + μ1 * diff_θ) * inv_2μ2
 
-        dθ_norm = norm(dθ)
-        if dθ_norm > 1e-8; @. dθ /= dθ_norm; end
+            dθ_norm = norm(dθ)
+            if dθ_norm > 1e-8; @. dθ /= dθ_norm; end
 
-        energy_gap = max(1e-6, H - C)
-        damping = dot(λ, dθ) / energy_gap
+            energy_gap = max(1e-6, H - C)
+            damping = dot(λ, dθ) / energy_gap
 
-        @. dλ = (μ1 * dθ - grad_cache) * damping
+            @. dλ = (μ1 * dθ - grad_cache) * damping
 
-        return nothing
+            return nothing
+        end
     end
 end
 
@@ -350,10 +357,14 @@ end
 # --- High Level Solve Interface ---
 # ====================================================================
 
-function MDCsolve(sys::MDCSystem; span=MDCSpan(-10.0, 10.0), mode=:fast, callback=nothing)
+function MDCsolve(sys::MDCSystem; 
+                  span=MDCSpan(-10.0, 10.0), 
+                  mode=:adaptive,          
+                  dt=0.01,                 
+                  callback=nothing,
+                  parallel=false)
+    
     # 1. Initialize workspaces and baseline layout
-    # Note: If initialise_lambda modifies ws in-place, it happens sequentially here
-    # before we spawn our parallel integration threads.
     ws = MDCWorkspace(sys)
     λ₀ = initialise_lambda(sys, ws)
     
@@ -365,38 +376,51 @@ function MDCsolve(sys::MDCSystem; span=MDCSpan(-10.0, 10.0), mode=:fast, callbac
     
     alg = Tsit5()
 
-    sol_neg = nothing
-    sol_pos = nothing
-
-    # 3. Parallel Integration Phase
-    # The @sync block ensures Julia waits for both paths to finish before returning
-    Threads.@sync begin
-        
-        # --- Backward Path Integration (Negative Span) ---
-        if span.negative < 0.0
-            Threads.@spawn begin
-                # Allocate an isolated vectorfield closure containing unique inner cache buffers
-                local_vf_neg! = vectorfield(sys)
-                
-                prob_neg = ODEProblem(local_vf_neg!, u0, (0.0, span.negative), sys)
-                sol_neg = solve(prob_neg, alg, callback=callback)
-            end
-        end
-
-        # --- Forward Path Integration (Positive Span) ---
-        if span.positive > 0.0
-            Threads.@spawn begin
-                # Allocate a second isolated vectorfield closure instance to eliminate race conditions
-                local_vf_pos! = vectorfield(sys)
-                
-                prob_pos = ODEProblem(local_vf_pos!, u0, (0.0, span.positive), sys)
-                sol_pos = solve(prob_pos, alg, callback=callback)
-            end
-        end
-        
+    # 3. Parse solver configurations based on the chosen mode
+    solve_kwargs = if mode == :fixed
+        (adaptive = false, dt = dt)
+    elseif mode == :fast
+        (
+            adaptive = true, 
+            force_dtmin = true, 
+            dt = dt, 
+            dtmin = 1e-6, 
+            unstable_check = (dt, u, p, t) -> false 
+        )
+    else # :adaptive (Default safe behavior)
+        (adaptive = true,)
     end
 
-    return MDCCurve(sol_neg, sol_pos)
+    # 4. Modified closures to RETURN the solutions
+    run_neg() = begin
+        if span.negative < 0.0
+            local_vf_neg! = vectorfield(sys)
+            prob_neg = ODEProblem(local_vf_neg!, u0, (0.0, span.negative), sys)
+            return solve(prob_neg, alg; callback=callback, solve_kwargs...)
+        end
+        return nothing
+    end
+
+    run_pos() = begin
+        if span.positive > 0.0
+            local_vf_pos! = vectorfield(sys)
+            prob_pos = ODEProblem(local_vf_pos!, u0, (0.0, span.positive), sys)
+            return solve(prob_pos, alg; callback=callback, solve_kwargs...)
+        end
+        return nothing
+    end
+
+    # 5. Integration Phase with strict assignment
+    sol_neg, sol_pos = if parallel
+        # Wrap tasks and fetch their returned values
+        t_neg = Threads.@spawn run_neg()
+        t_pos = Threads.@spawn run_pos()
+        fetch(t_neg), fetch(t_pos)
+    else
+        run_neg(), run_pos()
+    end
+    
+    return MDCCurve(sol_pos, sol_neg)
 end
 
 """
@@ -407,8 +431,30 @@ Automatically routes positive arc-lengths to `positive_sol` and negative
 arc-lengths to `negative_sol`.
 """
 function (curve::MDCCurve)(t::Real; type=:all)
-    raw_state = t >= 0.0 ? curve.positive_sol(t) : curve.negative_sol(t)
+    # 1. Null-Safe State Extraction
+    raw_state = if t >= 0.0
+        if !isnothing(curve.positive_sol)
+            curve.positive_sol(t)
+        elseif !isnothing(curve.negative_sol)
+            # Boundary stitch point: if forward is missing, 
+            # fall back to the initial state at the start of the backward path
+            curve.negative_sol(0.0)
+        else
+            error("Cannot evaluate MDCCurve: both positive and negative solutions are empty.")
+        end
+    else # t < 0.0
+        if !isnothing(curve.negative_sol)
+            curve.negative_sol(t)
+        elseif !isnothing(curve.positive_sol)
+            # Boundary stitch point: if backward is missing,
+            # fall back to the initial state at the start of the forward path
+            curve.positive_sol(0.0)
+        else
+            error("Cannot evaluate MDCCurve: both positive and negative solutions are empty.")
+        end
+    end
     
+    # 2. Vector Parsing and Slicing (Same as your current logic)
     if type == :all
         return raw_state
     end

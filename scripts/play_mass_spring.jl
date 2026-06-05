@@ -67,7 +67,7 @@ println("--- Setting up Mass-Spring MDC Test ---")
 
 # Define our base physical system nominal profile
 θ_nominal = [1.0, 0.5, 5.0]     # True baseline: m=2.0, c=1.5, k=8.0
-dθ_nominal = [1.0, 2.0, 3.0]     # True baseline: m=2.0, c=1.5, k=8.0
+dθ_nominal = [1.0, 0.5, 5.0]     # True baseline: m=2.0, c=1.5, k=8.0
 u0_physical = [1.0, 0.0]        # Initial position=1, velocity=0
 tspan_physical = (0.0, 10.0)    # Observe for 10 seconds
 
@@ -95,7 +95,7 @@ my_pipeline = CallbackSet(stabilizer)
 
 
 
-mdc_curves = MDCsolve(sys, span=MDCSpan(-5.0, 5.0), callback=my_pipeline)
+mdc_curves = MDCsolve(sys, span=MDCSpan(-5.0, 5.0), callback=my_pipeline; mode=:fast)
 
 
 # ====================================================================
@@ -133,14 +133,14 @@ A user custom visualization function passed to `animate_mdc`.
 - `plt`: The ongoing animation plot canvas handle.
 - `θ_current`: The physical parameters [m, c, k] supplied at the current path step.
 """
-function animate_system_response(plt, θ_current)
+function animate_system_response(θ_current) 
     # 1. Setup simulation configuration matching your setup
     u0 = [1.0, 0.0]
     tspan = (0.0, 10.0)
     dt = 0.1
     
     # 2. Simulate the nominal baseline trajectory for comparison
-    prob_nominal = ODEProblem(mass_spring_dynamics!, u0, tspan, [1.0, 2.5, 5.0]) # θ_nominal
+    prob_nominal = ODEProblem(mass_spring_dynamics!, u0, tspan, θ_nominal) 
     sol_nominal = solve(prob_nominal, Tsit5(), saveat=dt)
     
     # 3. Simulate the system under the current explored parameter set
@@ -151,11 +151,11 @@ function animate_system_response(plt, θ_current)
     pos_nominal = [u[1] for u in sol_nominal.u]
     pos_current = [u[1] for u in sol_current.u]
     
-    # 5. Paint directly onto Subplot 2
+    # 5. Paint directly onto Subplot 1 (The designated simulation sandbox)
     # Plot the ground-truth nominal response as a static dashed black line
     Plots.plot!(
-        plt, sol_nominal.t, pos_nominal,
-        subplot = 2,
+        sol_nominal.t, pos_nominal,       # <-- Removed explicit plt reference
+        subplot = 1,                      # <-- Changed to subplot 1
         line = (:black, :dash),
         linewidth = 2,
         label = "Nominal Target"
@@ -163,20 +163,20 @@ function animate_system_response(plt, θ_current)
     
     # Overlay the explored parameter trajectory response in solid blue
     Plots.plot!(
-        plt, sol_current.t, pos_current,
-        subplot = 2,
+        sol_current.t, pos_current,       # <-- Removed explicit plt reference
+        subplot = 1,                      # <-- Changed to subplot 1
         color = :blue,
         linewidth = 2.5,
         label = "MDC Configuration Response",
         xlabel = "Physical Time (s)",
         ylabel = "Position (x)",
-        ylim = (-1.2, 1.2) # Bound axes to stop shifting during playback
+        ylim = (-1.2, 1.2) 
     )
 end
 
 # --- Trigger the Animation Generation ---
 # println("\n--- Generating MDC Parameter Sweep Animation ---")
-# anim = animate_mdc(mdc_curves, animate_system_response; density=100, fps=15, raw=true)
+anim = animate_mdc(mdc_curves, animate_system_response; density=100, fps=15, raw=true)
 
 # Save out your animation file
-# gif(anim, "mass_spring_mdc_sweep.gif", fps=15)
+gif(anim, "mass_spring_mdc_sweep.gif", fps=15)

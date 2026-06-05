@@ -20,7 +20,7 @@
     θ₀    = sys.θ₀
     
     # 2. Reconstruct Continuous Time and States Axis Safely
-    min_t = !isnothing(curve.negative_sol) ? -maximum(curve.negative_sol.t) : 0.0
+    min_t = !isnothing(curve.negative_sol) ? minimum(curve.negative_sol.t) : 0.0
     max_t = !isnothing(curve.positive_sol) ? maximum(curve.positive_sol.t) : 0.0
     
     t_grid = range(min_t, stop=max_t, length=density)
@@ -95,7 +95,7 @@ end
     sys   = sample_sol.prob.p  
     chain = sys.cost.chain     
     
-    min_t = !isnothing(curve.negative_sol) ? -maximum(curve.negative_sol.t) : 0.0
+    min_t = !isnothing(curve.negative_sol) ? minimum(curve.negative_sol.t) : 0.0
     max_t = !isnothing(curve.positive_sol) ? maximum(curve.positive_sol.t) : 0.0
     t_grid = range(min_t, stop=max_t, length=density)
     
@@ -198,7 +198,7 @@ function cost_profile(curve::MinimallyDisruptiveCurves.MDCCurve; density=100)
     end
     sys = sample_sol.prob.p
     
-    min_t = !isnothing(curve.negative_sol) ? -maximum(curve.negative_sol.t) : 0.0
+    min_t = !isnothing(curve.negative_sol) ? minimum(curve.negative_sol.t) : 0.0
     max_t = !isnothing(curve.positive_sol) ? maximum(curve.positive_sol.t) : 0.0
     
     t_grid = range(min_t, stop=max_t, length=density)

@@ -82,17 +82,11 @@ end
 
 # --- LogAbs ---
 struct LogAbsTransform <: AbstractTransform end
+forward(::LogAbsTransform, x) = log.(abs.(x))
+inverse(::LogAbsTransform, y) = exp.(y)
 
-# Forward: Optimizer Space (log) -> Physical Space (exp)
-forward(::LogAbsTransform, x) = exp.(x)
-
-# Inverse: Physical Space -> Optimizer Space
-inverse(::LogAbsTransform, y) = log.(abs.(y))
-
-# Pullback: z = exp(x), so dz/dx = exp(x) = z. 
-# g_in = g_out * z
 function pullback!(::LogAbsTransform, g_in, g_out, x, y)
-    @. g_in = g_out * y  # 'y' is the output of forward (the physical values)
+    @. g_in = g_out / x
     return g_in
 end
 
@@ -162,4 +156,48 @@ function transform_names(chain::TransformChain, names::Vector{Symbol})
     return current_names
 end
 
+
+abstract type AbstractCost end
+
+# ====================================================================
+# --- Core Cost Function ---
+# ====================================================================
+
+struct CostFunction{F, G} <: AbstractCost
+    f::F
+    grad!::G
+end
+
+value(c::CostFunction, θ) = c.f(θ)
+gradient!(c::CostFunction, g, θ) = c.grad!(g, θ)
+
+
+# ====================================================================
+# --- Transformed Cost Wrapper ---
+# ====================================================================
+
+struct TransformedCost{C<:AbstractCost, T<:TransformChain} <: AbstractCost
+    cost::C
+    chain::T
+end
+
+# Value-only evaluation
+# Maps optimization parameter θ -> physical space via forward, then evaluates
+(tc::TransformedCost)(θ) = value(tc.cost, forward(tc.chain, θ))
+
+
+function (tc::TransformedCost)(θ, gθ, gz)
+    z = forward(tc.chain, θ)
+    gradient!(tc.cost, gz, z)
+    g_transformed = pullback!(tc.chain, gz, z)
+    gθ .= g_transformed
+    return value(tc.cost, z)
+end
+
+# Keep this fallback ONLY for users calling it outside the solver loop
+function (tc::TransformedCost)(θ, gθ)
+    z = forward(tc.chain, θ)
+    gz = similar(z) # Acceptable for one-off manual calls
+    return tc(θ, gθ, gz)
+end
 

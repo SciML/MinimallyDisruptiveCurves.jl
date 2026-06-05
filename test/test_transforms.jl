@@ -46,23 +46,32 @@ using SafeTestsets
 
     @testset "LogAbsTransform" begin
         lat = LogAbsTransform()
-        x = [exp(1.0), -exp(2.0), 1e-3]
-        
-        # Maps
-        @test forward(lat, x) ≈ [1.0, 2.0, log(1e-3)]
-        @test inverse(lat, forward(lat, x)) ≈ abs.(x) # Note: strips the sign out natively
+    
+        # x starts in OPTIMIZER SPACE (log domain)
+        x = [1.0, 2.0, log(1e-3)]
+    
+        # 1. Forward Map: Optimizer Space -> Physical Space (exp)
+        # exp([1.0, 2.0, log(1e-3)]) -> [exp(1.0), exp(2.0), 1e-3]
+        y_expected = [exp(1.0), exp(2.0), 1e-3]
+        @test forward(lat, x) ≈ y_expected
+    
+        # 2. Inverse Map: Physical Space -> Optimizer Space
+        @test inverse(lat, forward(lat, x)) ≈ x
 
-        # Sensitivity Pullback
-        y = forward(lat, x)
-        g_out = [2.0, 2.0, 2.0]
+        # 3. Sensitivity Pullback
+        # y is the output of forward(lat, x) -> [exp(1.0), exp(2.0), 1e-3]
+        y = forward(lat, x) 
+        g_out = [2.0, 2.0, 2.0] # Gradient coming from physical cost function
         g_in = similar(x)
+    
         pullback!(lat, g_in, g_out, x, y)
-        @test g_in ≈ [2.0 / exp(1.0), 2.0 / -exp(2.0), 2.0 / 1e-3]
+    
+        # Mathematical check: g_in = g_out * y
+        @test g_in ≈ [2.0 * exp(1.0), 2.0 * exp(2.0), 2.0 * 1e-3]
 
-        # Metadata
+        # 4. Metadata
         @test transform_names(lat, [:param]) == [Symbol("log(abs(param))")]
     end
-
     @testset "FixedParamsTransform" begin
         # 3D parameter space, pinning parameter index 2 to a constant 99.0
         # Free space is 2D -> Maps to 3D Physical Space
@@ -91,10 +100,10 @@ using SafeTestsets
     # ====================================================================
     # --- 3. Compound Transform Chain Pipeline Verification ---
     # ====================================================================
-    @testset "Compound Chain Operations" begin
+        @testset "Compound Chain Operations" begin
         # Setup an end-to-end composite pipeline:
-        # Free optimization space (2D) -> Fix/Mask (3D) -> Scale (3D) -> LogAbs (3D)
-        
+        # Optimizer space (2D) -> Fix/Mask (3D) -> Scale (3D) -> LogAbs (3D exp) -> Physical Space
+    
         free_indices = [1, 3]
         fixed_values = [5.0]
         fpt = FixedParamsTransform(free_indices, fixed_values, 3)
@@ -103,13 +112,13 @@ using SafeTestsets
 
         chain = TransformChain(fpt, st, lat)
 
-        x_opt = [2.0, 8.0] # Free parameter starts
-        
+        x_opt = [2.0, 8.0] # Free parameter starts (in log/optimizer space)
+    
         # Manually trace intermediate passes to find analytical target:
-        # 1. fpt    -> [2.0, 5.0, 8.0]
-        # 2. st     -> [4.0, 5.0, 4.0]
-        # 3. lat    -> [log(4.0), log(5.0), log(4.0)]
-        expected_y_final = [log(4.0), log(5.0), log(4.0)]
+        # 1. fpt   -> [2.0, 5.0, 8.0]
+        # 2. st    -> [4.0, 5.0, 4.0]               (Multiplies log-space coordinates)
+        # 3. lat   -> [exp(4.0), exp(5.0), exp(4.0)] (Forward converts optimizer -> physical via exp)
+        expected_y_final = [exp(4.0), exp(5.0), exp(4.0)]
 
         y_final = forward(chain, x_opt)
         @test y_final ≈ expected_y_final
@@ -118,27 +127,25 @@ using SafeTestsets
         @test inverse(chain, y_final) ≈ x_opt
 
         # --- Pipeline Pullback Sensitivity Checks ---
-        g_initial = [1.0, 1.0, 1.0] # dLoss / dy_final
-        
-        # Calculate manually backwards:
-        # 1. lat pullback: g / x_st  => [1/4, 1/5, 1/4]
-        # 2. st pullback:  g * weights => [1/4*2, 1/5*1, 1/4*0.5] = [0.5, 0.2, 0.125]
-        # 3. fpt pullback: slice free  => [0.5, 0.125]
-        expected_g_transformed = [0.5, 0.125]
+        g_initial = [1.0, 1.0, 1.0] # dLoss / dy_final (Gradient sitting at Physical Space)
+    
+        # Calculate manually backwards (Pullback flows: lat -> st -> fpt):
+        # 1. lat pullback: g * y_final => [1.0 * exp(4.0), 1.0 * exp(5.0), 1.0 * exp(4.0)]
+        # 2. st pullback:  g * weights => [exp(4.0) * 2.0, exp(5.0) * 1.0, exp(4.0) * 0.5]
+        # 3. fpt pullback: slice free  => [2.0 * exp(4.0), 0.5 * exp(4.0)]
+        expected_g_transformed = [2.0 * exp(4.0), 0.5 * exp(4.0)]
 
         g_transformed = pullback!(chain, g_initial, y_final)
         @test g_transformed ≈ expected_g_transformed
-        
+    
         # Test structural pipeline names tracing
         opt_names = [:p1, :p2]
         final_names = transform_names(chain, opt_names)
-        # Note: fpt skips tracking because names length (2) != full_dim (3)
-        # Then st converts, then lat converts.
         @test final_names == [Symbol("log(abs(2.0 * p1))"), Symbol("log(abs(p2))")]
+    
         # Test full tracking when full physical dimension size names are passed
         physical_names = [:physical_1, :pinned_field, :physical_3]
-        
-        # FIXED: Matches the exact physical slicing and mapping logic of your code
+    
         @test transform_names(chain, physical_names) == [
             Symbol("log(abs(2.0 * physical_1))"),
             Symbol("log(abs(physical_3))")

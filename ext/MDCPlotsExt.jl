@@ -2,7 +2,7 @@ module MDCPlotsExt
 
 using MinimallyDisruptiveCurves
 using Plots
-using Plots.PlotMeasures # Required to unlock padding units like px, mm, or cm
+using Plots.PlotMeasures 
 
 import MinimallyDisruptiveCurves: MDCCurve, animate_mdc, transform_names
 
@@ -20,21 +20,20 @@ function MinimallyDisruptiveCurves.animate_mdc(
         error("Cannot animate an empty MDCCurve.")
     end
 
-    sys   = sample_sol.prob.p  
-    chain = sys.cost.chain     
-    θ₀    = sys.θ₀
+    mdc_sys = hasproperty(curve, :sys) ? curve.sys : sample_sol.prob.p
+    
+    # Unpack core mathematical structures
+    chain = hasproperty(mdc_sys, :chain) ? mdc_sys.chain : mdc_sys.cost.chain
+    θ₀    = mdc_sys.θ₀
     
     # 2. Reconstruct Continuous Time Domain Axis Safely
-    min_t_bound = !isnothing(curve.negative_sol) ? -maximum(curve.negative_sol.t) : 0.0
+    min_t_bound = !isnothing(curve.negative_sol) ? minimum(curve.negative_sol.t) : 0.0
     max_t_bound = !isnothing(curve.positive_sol) ? maximum(curve.positive_sol.t) : 0.0
     
     full_grid = collect(range(min_t_bound, stop=max_t_bound, length=density))
     sampled_states = [curve(t) for t in full_grid]
     
-    # Isolate trailing arc-length coordinate scalar tracking variable from length representation
     N_params = (length(sampled_states[1])) ÷ 2
-    
-    # Safe dimension checking falling back smoothly on empty transformation chains
     out_dim = (raw && !isempty(chain.ts)) ? chain.ts[end].full_dim : N_params
     
     Y_global = Matrix{Float64}(undef, length(full_grid), out_dim)
@@ -55,19 +54,23 @@ function MinimallyDisruptiveCurves.animate_mdc(
     end
 
     # Resolve active label naming mappings
-    if raw
-        all_labels = [string(n) for n in transform_names(chain, sys.names)][active_indices]
+    all_labels = String[]
+    if hasproperty(mdc_sys, :names)
+        base_names = mdc_sys.names 
+        processed_names = raw ? transform_names(chain, base_names) : base_names
+        all_labels = [string(n) for n in processed_names][active_indices]
+    else
+        all_labels = ["p_$i" for i in active_indices]
     end
-    labels_row = reshape(all_labels, 1, length(active_indices))
 
-    # Calculate global tracking bounds across parameters for layout normalization
+    # Calculate global tracking bounds across parameters
     y_min_bound, y_max_bound = minimum(Y_global), maximum(Y_global)
     margin_val = (y_max_bound - y_min_bound) * 0.05
     ylims_global = (y_min_bound - margin_val, y_max_bound + margin_val)
 
-    # Hardcode explicit color vec to force perfect matches
+    # Flatten palette elements into a 1D vector to prevent multi-subplot routing confusion
     num_colors = length(active_indices)
-    chosen_palette = reshape([Plots.palette(:auto)[i] for i in 1:num_colors], 1, num_colors)
+    color_array = [Plots.palette(:auto)[mod1(i, length(Plots.palette(:auto)))] for i in 1:num_colors]
 
     # Define custom asymmetric layout
     custom_layout = Plots.@layout [
@@ -78,15 +81,11 @@ function MinimallyDisruptiveCurves.animate_mdc(
     # 3. Main Linear Animation Frame Sweep
     anim = Plots.@animate for (frame_idx, t_current) in enumerate(full_grid)
         
-        # Initialize the figure with the custom layout and outer margin padding
-        # FIX: Added top, bottom, left, and right margins (5mm) to stop edge cropping
         Plots.plot(
             layout = custom_layout, 
-            size = (1100, 750), # Slightly increased height canvas to accommodate stack layers
-            left_margin = 6mm, 
-            right_margin = 6mm, 
-            top_margin = 6mm, 
-            bottom_margin = 6mm
+            size = (1100, 750),
+            left_margin = 6mm, right_margin = 6mm, 
+            top_margin = 6mm, bottom_margin = 6mm
         )
 
         state_current = curve(t_current)
@@ -96,23 +95,20 @@ function MinimallyDisruptiveCurves.animate_mdc(
         y_cursor = raw ? θ_physical[active_indices] : θ_transformed[active_indices]
 
         # --- PANEL 1: User Physics Simulation Sandbox (Entire Top Row) ---
-        user_sim_func(1, θ_physical)
+        user_sim_func(θ_physical)
         Plots.plot!(subplot = 1, title = "Live System Behavior Profile")
 
-        # --- PANEL 2: Instantaneous Value Deviation Bar Chart (Bottom Left, 1/3 Width) ---
-        deltas = y_cursor .- θ₀_processed
-        
-        labels_as_series = reshape(all_labels, 1, length(all_labels))
-        deltas_as_series = reshape(deltas, 1, length(deltas))
+        # --- PANEL 2: Instantaneous Value Deviation Bar Chart ---
+        deltas = vec(y_cursor .- θ₀_processed) # FIXED: Force 1D flat vector context
 
         Plots.bar!(
-            labels_as_series, deltas_as_series,
-            subplot = 2,                       
+            all_labels, deltas,
+            subplot = 2,                                
             orientation = :vertical,
             fillalpha = 0.7,
             linewidth = 1.2, linecolor = :match,
-            color = chosen_palette,     
-            bar_width = 0.95,            
+            color = color_array,     
+            bar_width = 0.8,            
             label = false
         )
         
@@ -120,29 +116,37 @@ function MinimallyDisruptiveCurves.animate_mdc(
         max_delta = max(1e-6, max_delta) 
         
         Plots.plot!(
-            subplot = 2,                       
+            subplot = 2,                                
             title = "Instantaneous Parameter Shift (Δ)",
             ylabel = "Deviation from Nominal",
             ylims = (-max_delta * 1.2, max_delta * 1.2)
         )
 
-        # --- PANEL 3: Structural Parameter Manifold Trace (Bottom Right, 2/3 Width) ---
-        Plots.plot!(
-            full_grid, Y_global,
-            subplot = 3,
-            linewidth = 1.0, linealpha = 0.15, label = false,
-            color = chosen_palette     
-        )
+        # --- PANEL 3: Structural Parameter Manifold Trace ---
+        # FIXED: Plot matrix structures iteratively as flat 1D vectors to avoid column bleed across subplots
+        for i in 1:size(Y_global, 2)
+            Plots.plot!(
+                full_grid, Y_global[:, i],
+                subplot = 3,
+                linewidth = 1.0, linealpha = 0.15, label = false,
+                color = color_array[i]     
+            )
+        end
 
+        # Isolate historical data trail segments
         Y_past = copy(Y_global)
         Y_past[(frame_idx + 1):end, :] .= NaN
-        Plots.plot!(
-            full_grid, Y_past,
-            subplot = 3,
-            linewidth = 3.0, linealpha = 0.9,
-            label = labels_row, legend = :topleft,
-            color = chosen_palette     
-        )
+        
+        for i in 1:size(Y_past, 2)
+            Plots.plot!(
+                full_grid, Y_past[:, i],
+                subplot = 3,
+                linewidth = 3.0, linealpha = 0.9,
+                label = all_labels[i],
+                legend = :topleft,
+                color = color_array[i]     
+            )
+        end
 
         Plots.scatter!(
             fill(t_current, length(active_indices)), y_cursor,

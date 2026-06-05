@@ -1,108 +1,122 @@
+using ModelingToolkit
+using OrdinaryDiffEq
+using ForwardDiff
+using PreallocationTools
+using SymbolicIndexingInterface
+using SymbolicIndexingInterface: parameter_values
+using SciMLStructures: Tunable, canonicalize, replace
+using SciMLBase
+# ==========================================
+# 1. Setup MTK Network & Base ODE Problem
+# ==========================================
 include("./build_NFKB.jl")
-
-
 sys = build_nfkb()
+tspan = (0.0, 3600.0)
+prob = ODEProblem(sys, [], tspan)
 
+# ==========================================
+# 2. Define the Specific Tracking States (Observables)
+# ==========================================
+target_observables = [
+    sys.pathway.NFkBn_obs,
+    sys.pathway.IkBa_cyto_obs,
+    sys.pathway.A20t_obs,
+    sys.pathway.IKKtot_obs,
+    sys.pathway.IKKa_obs,
+    sys.pathway.IkBat_obs
+]
 
+# ==========================================
+# 3. Dynamic Parameter Identification
+# ==========================================
+# Clean intersection ensures we only pass active, system-level symbols
+params_to_optimize = tunable_parameters(sys) ∩ parameters(sys)
 
-# """
-#     make_nfkb_cost_function(nfkb_sys; tspan=(0.0, 30000.0), dt=100.0)
+println("Natively optimizing $(length(params_to_optimize)) tunable parameters.")
 
-# Generates a `CostFunction` instance for MDC tracking using the programmatic MTK structure.
-# """
-# function make_nfkb_cost_function(nfkb_sys; tspan=(0.0, 30000.0), dt=100.0)
-#     # 1. Setup the baseline immutable problem and reference matrix
-#     # Turning on the analytic Jacobian gives a massive speedup for stiff solvers
-#     base_prob = ODEProblem(nfkb_sys, Dict(), tspan)
+# ==========================================
+# 4. Generate Baseline Experimental Data ("Truth")
+# ==========================================
+timesteps = 0.0:10.0:3600.0
+sol_nominal = solve(prob, Tsit5(); saveat = timesteps)
+truth_data = Array(sol_nominal(timesteps, idxs = target_observables))
+
+# ==========================================
+# 5. High-Performance Loss Function
+# ==========================================
+function loss_function(x, p_tuple)
+    # Destructure context tuple
+    odeprob, ts, truth, setter, diffcache, obs_symbols = p_tuple
     
-#     target_times = collect(tspan[1]:dt:tspan[2])
-#     nominal_sol = solve(base_prob, Tsit5(); saveat = target_times)
-#     target_matrix = Array(nominal_sol)
+    ps = parameter_values(odeprob)
+    buffer = get_tmp(diffcache, x)
     
-#     # 2. Extract the MTK structural tracking information
-#     # This figures out exactly what order MTK expects the raw parameter vector to be in!
-#     ps_structure = ModelingToolkit.parameter_values(base_prob)
-#     initial_guess, repack, alias = canonicalize(Tunable(), ps_structure)
+    # Block-copy baseline values (the non-tunables stay untouched elsewhere in `ps`)
+    copyto!(buffer, canonicalize(Tunable(), ps)[1])
     
-#     # Preallocate a non-allocating Dual cache matching the total parameter count
-#     diffcache = DiffCache(copy(initial_guess))
+    # Type-safe structural parameter container replacement for ForwardDiff
+    ps_updated = replace(Tunable(), ps, buffer)
     
-#     # 3. Define the objective function f(θ) for MDC
-#     # MDC passes raw vectors (θ) directly. This closure accepts Dual or Real types seamlessly.
-#     function f(θ)
-#         # Grab our type-safe temporary buffer (handles Float64 or Dual numbers flawlessly)
-#         buffer = get_tmp(diffcache, θ)
-#         copyto!(buffer, θ)
-        
-#         # Swap the entire parameter array block cleanly using the ultra-fast SciML route
-#         ps_updated = replace(Tunable(), ps_structure, buffer)
-        
-#         # Remake the problem cleanly using the fast parameter object direct route
-#         local_prob = remake(base_prob; p = ps_updated)
-        
-#         sol = solve(local_prob, Tsit5(); saveat = target_times)
-        
-#         # Catch solver failures from bad parameter combinations
-#         if sol.retcode != ReturnCode.Success
-#             return Inf
-#         end
-
-        
-#         current_matrix = Array(sol)
-#         return sum((target_matrix .- current_matrix) .^ 2) / length(target_matrix)
-#     end
+    # Mutate only our active dual/float optimization array
+    setter(ps_updated, x)
     
-#     # 4. Define the exact Automatic Differentiation gradient closure (grad!)
-#     function grad!(g, θ)
-#         ForwardDiff.gradient!(g, f, θ)
-#         return g
-#     end
+    # Fast inferred problem recreation
+    newprob = remake(odeprob; p = ps_updated)
+    sol = solve(newprob, Tsit5(); saveat = ts)
     
-#     # Return the clean object, along with the correct initial parameter layout
-#     return CostFunction(f, grad!), initial_guess
-# end
+    if sol.retcode != SciMLBase.ReturnCode.Success
+        return eltype(x)(Inf) # Strict type stability for dual-number propagation
+    end
+    
+    # Extract states cleanly via targeted tracking symbols
+    current_data = sol(ts, idxs = obs_symbols)
+    
+    # Allocation-free MSE over the exact matrix of specified states
+    return sum(abs2, truth .- current_data) / length(truth)
+end
 
-# println("--- Setting up Biological NFκB MDC Exploration ---")
+# ==========================================
+# 6. Build the Optimization Context
+# ==========================================
+setter = setp(prob, params_to_optimize)
+getter = getp(prob, params_to_optimize)
 
-# # 1. Build the high-performance cost function and extract the matching θ vector
-# core_cost, θ_nominal = make_nfkb_cost_function(nfkb)
+raw_ps = parameter_values(prob)
+tunable_vector_prototype = copy(canonicalize(Tunable(), raw_ps)[1])
+diffcache = DiffCache(tunable_vector_prototype)
 
-# # 2. Wire up your standard MDC Transform Chain
-# chain = TransformChain(LogAbsTransform()) 
-# transformed_cost = TransformedCost(core_cost, chain)
+# Package context containing our 24 target parameters and 6 observables
+p_tuple = (prob, timesteps, truth_data, setter, diffcache, target_observables)
 
-# # @time Hessian_transformed = ForwardDiff.hessian(transformed_cost, θ₀)
+# ==========================================
+# 7. Evaluation and Gradient Verification
+# ==========================================
+println("\n--- Running Scaled Loss Function Evaluation ---")
 
-# θ₀ = MinimallyDisruptiveCurves.inverse(chain, θ_nominal)
-#     dθ₀ =  [-0.0002966819280282935,
-#          -0.00046740023865947405,
-#          -0.0006172301613469874,
-#          -0.0076219915688165345,
-#          0.004111126929182724,
-#          0.0035317278699176897,
-#          -0.0026354024079565993,
-#          0.9992471806463734,
-#          0.0024844776408676655,
-#          0.0006191008133848389,
-#          0.0003341884455915324,
-#          -9.683482118398813e-5,
-#          -0.006320083460264131,
-#          -0.0023372269741494464,
-#          0.0059844438775523215,
-#          0.002022305075160067,
-#          0.011612252568162458,
-#          0.032650226304473264,
-#          0.0004650954874649577,
-#          0.0028065194613369642,
-#          -0.009986722784235914,
-#          -0.0028205754321405825,
-#          0.001148377460908286]
-# H = 1.0                       # Energy barrier threshold
+x_nominal = getter(prob)
+loss_at_nominal = loss_function(x_nominal, p_tuple)
+println("Loss at nominal parameters: ", loss_at_nominal)
 
-# sys = MDCSystem(transformed_cost, θ₀, dθ₀, H)
+# Perturb all 24 parameters at once to check scaling response
+x_perturbed = x_nominal .* 1.10  
+loss_at_perturbed = loss_function(x_perturbed, p_tuple)
 
-# # 4. Apply your stabilizers and solve
-# stabilizer = mdc_momentum_readjustment(sys; tol=1e-3)
-# my_pipeline = CallbackSet(stabilizer)
 
-# mdc_curves = MDCsolve(sys, span=MDCSpan(0.0, 5.0), callback=my_pipeline; mode=:fast)
+# A clean, global-safe closure for the value calculation
+f_wrapped = θ -> loss_function(θ, p_tuple)
+
+# Pre-allocate the ForwardDiff configuration to keep it lightning-fast and allocation-free
+x_nominal = getter(prob)
+cfg = ForwardDiff.GradientConfig(f_wrapped, x_nominal, ForwardDiff.Chunk(x_nominal))
+
+# An in-place wrapper function that mutates 'g' without modifying package code
+grad_wrapped! = function (g, θ)
+    ForwardDiff.gradient!(g, f_wrapped, θ, cfg)
+end
+
+
+# This instantiates your package structs perfectly without a single line changed inside it!
+base_cost = CostFunction(f_wrapped, grad_wrapped!)
+
+pipeline = TransformChain(LogAbsTransform())
+final_cost = TransformedCost(base_cost, pipeline)

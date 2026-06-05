@@ -1,3 +1,9 @@
+"""
+Just a minimal example of making a differentiable gradient with mtk for my records
+"""
+
+
+
 using ModelingToolkit
 using OrdinaryDiffEq
 using ForwardDiff

@@ -81,73 +81,51 @@ mdc_curves = MDCsolve(sys, span=MDCSpan(-1.0, 5.0))
 println("\nPreparing continuous manifold animation...")
 
 # Define the live sandbox rendering function
-function lotka_volterra_sandbox_painter(canvas_idx::Int, θ_physical)
-    sol_nominal = solve_at_p(p_nominal)
+function lotka_volterra_sandbox_painter(θ_physical)
+    plot_t_grid = range(tspan[1], tspan[2], length = 200)
+    
+    sol_nominal   = solve_at_p(p_nominal)
     sol_perturbed = solve_at_p(θ_physical)
     
-    # 1. Extract states (Row 1: Prey, Row 2: Predator)
-    # nominal
-    prey_nominal = sol_nominal[1, :]
-    pred_nominal = sol_nominal[2, :]
-    # live (perturbed)
-    prey_perturbed = sol_perturbed[1, :]
-    pred_perturbed = sol_perturbed[2, :]
-
-    # 2. Calculate Metrics
-    mean_prey_nom  = sum(prey_nominal) / length(prey_nominal)
-    mean_prey_pert = sum(prey_perturbed) / length(prey_perturbed)
+    states_nom  = [sol_nominal(t_val) for t_val in plot_t_grid]
+    states_pert = [sol_perturbed(t_val) for t_val in plot_t_grid]
     
+    prey_nominal = [u[1] for u in states_nom]
+    pred_nominal = [u[2] for u in states_nom]
+    
+    prey_perturbed = [u[1] for u in states_pert]
+    pred_perturbed = [u[2] for u in states_pert]
+
+    mean_prey_nom  = mean(prey_nominal)
+    mean_prey_pert = mean(prey_perturbed)
     max_pred_nom   = maximum(pred_nominal)
     max_pred_pert  = maximum(pred_perturbed)
 
-    # 3. Plot baseline nominal trajectory as background reference context
     Plots.plot!(
-        sol_nominal, 
-        subplot = canvas_idx, 
-        linealpha = 0.25, linestyle = :dash, 
+        plot_t_grid, [prey_nominal pred_nominal], 
+        subplot = 1, 
+        linealpha = 0.20, linestyle = :dash, 
         color = [:blue :red], label = false
     )
     
-    # 4. Overlay the live parameter trajectory tracking configuration
     Plots.plot!(
-        sol_perturbed, 
-        subplot = canvas_idx, 
+        plot_t_grid, [prey_perturbed pred_perturbed], 
+        subplot = 1, 
         linewidth = 2, 
-        color = [:blue :red], label = ["Prey" "Predator"],
+        color = [:blue :red], label = ["Prey (x)" "Predator (y)"],
         legend = :topright
     )
     
-    # 5. Add Horizontal Reference Lines
-    # Nominal metrics (dashed, faint colors to match background context)
-    Plots.hline!(
-        [mean_prey_nom], 
-        subplot = canvas_idx, 
-        linestyle = :dot, linealpha = 0.4, color = :blue, label = false
-    )
-    Plots.hline!(
-        [max_pred_nom], 
-        subplot = canvas_idx, 
-        linestyle = :dot, linealpha = 0.4, color = :red, label = false
-    )
+    Plots.hline!([mean_prey_nom], subplot = 1, linestyle = :dot, linealpha = 0.4, color = :blue, label = false)
+    Plots.hline!([max_pred_nom], subplot = 1, linestyle = :dot, linealpha = 0.4, color = :red, label = false)
     
-    # Live metrics (solid or distinct style, matching live colors)
-    Plots.hline!(
-        [mean_prey_pert], 
-        subplot = canvas_idx, 
-        linestyle = :dashdot, linewidth = 1.2, color = :darkblue, 
-        label = "Mean Prey"
-    )
-    Plots.hline!(
-        [max_pred_pert], 
-        subplot = canvas_idx, 
-        linestyle = :dashdot, linewidth = 1.2, color = :darkred, 
-        label = "Max Predator"
-    )
+    Plots.hline!([mean_prey_pert], subplot = 1, linestyle = :dashdot, linewidth = 1.2, color = :darkblue, label = "Mean Prey")
+    Plots.hline!([max_pred_pert], subplot = 1, linestyle = :dashdot, linewidth = 1.2, color = :darkred, label = "Max Predator")
     
-    # 6. Final Canvas Formatting
     Plots.plot!(
-        subplot = canvas_idx,
+        subplot = 1,
         xlabel = "Time", ylabel = "Population",
+        xlims = tspan,
         ylims = (0.0, 6.0)
     )
 end

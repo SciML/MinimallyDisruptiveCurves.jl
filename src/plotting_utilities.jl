@@ -53,7 +53,7 @@
     end
     
     # Metadata Alignment
-    title_suffix = mode == :relative ? " (Δ Change)" : (raw ? " (Raw Physical Units)" : " (Transformed Spacee)")
+    title_suffix = mode == :relative ? " (Δ Change)" : (raw ? " (Raw Physical Units)" : " (Transformed Space)")
     title  --> "MDC Parameter Trajectories$title_suffix"
     xlabel --> "Arc Length Path Coordinate (t)"
     ylabel --> (mode == :relative ? "Δ Value" : "Value")

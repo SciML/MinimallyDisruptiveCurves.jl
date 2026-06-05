@@ -95,6 +95,7 @@ function MinimallyDisruptiveCurves.animate_mdc(
         y_cursor = raw ? θ_physical[active_indices] : θ_transformed[active_indices]
 
         # --- PANEL 1: User Physics Simulation Sandbox (Entire Top Row) ---
+        Plots.plot!(subplot = 1, legend = :best)
         user_sim_func(θ_physical)
         Plots.plot!(subplot = 1, title = "Live System Behavior Profile")
 

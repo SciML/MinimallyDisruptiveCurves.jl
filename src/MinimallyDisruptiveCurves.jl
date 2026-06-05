@@ -1,8 +1,8 @@
 module MinimallyDisruptiveCurves
 
 
-using RecipesBase: RecipesBase, @recipe, @series
-using LinearAlgebra: LinearAlgebra, dot, norm
+using RecipesBase: RecipesBase, @recipe
+using LinearAlgebra: LinearAlgebra, dot, norm, eigen, mul!, normalize!
 using OrdinaryDiffEq: DiscreteCallback, ODEProblem, Tsit5
 import OrdinaryDiffEq: solve
 

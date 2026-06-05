@@ -76,8 +76,7 @@ chain = TransformChain(LogAbsTransform(), fix_transform)
 transformed_cost = TransformedCost(core_cost, chain)
 
 # 3. Instantiate the operational parameter states
-# FIXED: Move from Full Physical Space down to Reduced Optimization Space using inverse()
-θ₀ = inverse(chain, θ_nominal)  # Resolves exactly to 2 elements: [log(0.5), log(5.0)]
+θ₀ = MinimallyDisruptiveCurves.inverse(chain, θ_nominal)  # Resolves exactly to 2 elements: [log(0.5), log(5.0)]
 dθ₀ = [1.0, 1.0]                # 2-element directional push vector matching internal dimension
 
 H = 1.0 # Exploration energy headroom limit
@@ -108,7 +107,7 @@ println("Evaluated Active Parameter Labels: ", sys.names)
 if mdc_curves.positive_sol !== nothing && mdc_curves.negative_sol !== nothing
     # Extract the final terminal state coordinates found along the negative integration trace
     final_operational_state = mdc_curves.negative_sol.u[end]
-    θ_operational_end = final_operational_state[1:length(sys.names)]
+    θ_operational_end = final_operational_state[1:length(sys.θ₀)]
     
     # Run parameters backward through inverse maps to map coordinates back to physical units
     # FIXED: Restored to forward map layout to inflate active solver values back to 3D physical domain

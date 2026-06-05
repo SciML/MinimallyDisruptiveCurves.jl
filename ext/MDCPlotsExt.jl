@@ -34,8 +34,8 @@ function MinimallyDisruptiveCurves.animate_mdc(
     sampled_states = [curve(t) for t in full_grid]
     
     N_params = (length(sampled_states[1])) ÷ 2
-    out_dim = (raw && !isempty(chain.ts)) ? chain.ts[end].full_dim : N_params
-    
+    out_dim = raw ? length(mdc_sys.names) : N_params    
+
     Y_global = Matrix{Float64}(undef, length(full_grid), out_dim)
     for (t_idx, state) in enumerate(sampled_states)
         θ_current = state[1:N_params]
@@ -57,7 +57,7 @@ function MinimallyDisruptiveCurves.animate_mdc(
     all_labels = String[]
     if hasproperty(mdc_sys, :names)
         base_names = mdc_sys.names 
-        processed_names = raw ? transform_names(chain, base_names) : base_names
+        processed_names = raw ? base_names : transform_names(chain, base_names)
         all_labels = [string(n) for n in processed_names][active_indices]
     else
         all_labels = ["p_$i" for i in active_indices]

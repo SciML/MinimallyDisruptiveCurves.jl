@@ -32,10 +32,10 @@ end
 
 function MDCSystem(transformed_cost::TransformedCost, θ₀, dθ₀, momentum; names = nothing)
     N = length(θ₀)
-    initial_names = isnothing(names) ? [Symbol("θ_$i") for i in 1:N] : names
-    operational_names = transform_names(transformed_cost.chain, initial_names)
+    names = isnothing(names) ? [Symbol("θ_$i") for i in 1:N] : names
+    # operational_names = transform_names(transformed_cost.chain, initial_names)
     
-    return MDCSystem(transformed_cost, θ₀, dθ₀, momentum, operational_names)
+    return MDCSystem(transformed_cost, θ₀, dθ₀, momentum, names)
 end
 
 struct MDCWorkspace{V}
@@ -470,7 +470,6 @@ function (curve::MDCCurve)(t::Real; type=:all)
 end
 
 function Base.show(io::IO, ::MIME"text/plain", curve::MDCCurve)
-    # 1. Handle uninitialized case safely using the new spec field
     if isnothing(curve.spec)
         print(io, "Empty MDCCurve (uninitialized).")
         return
@@ -479,7 +478,6 @@ function Base.show(io::IO, ::MIME"text/plain", curve::MDCCurve)
     sys = curve.spec
     N_params = length(sys.θ₀)
 
-    # 2. Extract trajectory spans safely
     neg_max = !isnothing(curve.negative_sol) ? abs(minimum(curve.negative_sol.t)) : 0.0
     pos_max = !isnothing(curve.positive_sol) ? maximum(curve.positive_sol.t) : 0.0
 
@@ -490,16 +488,17 @@ function Base.show(io::IO, ::MIME"text/plain", curve::MDCCurve)
     println(io, "  • Initial Cost (C₀)    : ", round(sys.cost(sys.θ₀), digits=5))
     println(io, "  • Total Energy (H)     : ", sys.momentum)
     
-    # 3. Identify ultimate parameter changes at boundaries
     state_pos = !isnothing(curve.positive_sol) ? curve.positive_sol.u[end][1:N_params] : sys.θ₀
     state_neg = !isnothing(curve.negative_sol) ? curve.negative_sol.u[end][1:N_params] : sys.θ₀
     
-    # 4. Print parameter shifts using mapped names
+    # --- DYNAMIC NAME RESOLUTION HERE ---
+    # Since we are showing the optimizer's active parameter paths, 
+    # we transform the baseline names on-the-fly.
+    display_names = transform_names(sys.cost.chain, sys.names)
+    
     println(io, "  • Max Parameter Shifts :")
     for i in 1:N_params
-        # Fallback to standard index notation if names vector is empty or incomplete
-        p_name = (isassigned(sys.names, i) && !isnothing(sys.names[i])) ? string(sys.names[i]) : "θ_$i"
-        
+        p_name = (isassigned(display_names, i) && !isnothing(display_names[i])) ? string(display_names[i]) : "θ_$i"
         println(io, "      ", rpad(p_name, 20), ": [", round(state_neg[i], digits=3), " ↔ ", round(state_pos[i], digits=3), "]")
     end
 end

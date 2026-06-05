@@ -122,7 +122,7 @@ for i in 1:5
     println("--- Running MDC for index i = $i ---")
     
     # Create the system dynamically using the i-th direction
-    mdc_sys = MDCSystem(
+    _mdc_sys = MDCSystem(
         final_cost, 
         x_nominal_transformed, 
         vs[i],                # Replaced e_dirs(i) directly with vs[i]
@@ -131,11 +131,11 @@ for i in 1:5
     )
 
     # Set up the pipeline for this iteration
-    stabiliser  = mdc_momentum_readjustment(mdc_sys; tol = 1e-3)
+    stabiliser  = mdc_momentum_readjustment(_mdc_sys; tol = 1e-3)
     my_pipeline = CallbackSet(stabiliser)
 
     # Solve and store the result in your dictionary
-    @time curves_i = MDCsolve(mdc_sys, span = MDCSpan(-10.0, 10.0); callback = my_pipeline)
+    @time curves_i = MDCsolve(_mdc_sys, span = MDCSpan(-10.0, 10.0); callback = my_pipeline)
     
     mdc_curves[i] = curves_i
 end

@@ -1,4 +1,3 @@
-using LinearAlgebra
 
 function sparse_init_dir(hessian; orthogonal_to=nothing, λ=1.0, start=nothing, trim_level=1e-5, max_iter=2000, tol=1e-6)
     n = size(hessian, 1)

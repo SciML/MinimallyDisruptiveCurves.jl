@@ -14,6 +14,7 @@ include("transforms.jl")
 include("costInterface.jl")
 include("MDCSystem.jl")
 include("plotting_utilities.jl")
+include("utilities.jl")
 
 import Base.show
 
@@ -33,6 +34,8 @@ export mtk_cost_mapping
 
 function animate_mdc end
 export animate_mdc
+
+export sparse_init_dir, sparse_eigenbasis
 
 # Precompilation workload (must be at the end)
 include("precompilation.jl")

@@ -55,10 +55,10 @@ struct MDCSpan{T<:AbstractFloat}
     positive::T
 end
 
-# New flexible design: positive and negative paths can be completely distinct types
-struct MDCCurve{P, N}
+struct MDCCurve{P, N, C <: MDCSystem}
     positive_sol::P
     negative_sol::N
+    spec::C
 end
 
 
@@ -420,7 +420,7 @@ function MDCsolve(sys::MDCSystem;
         run_neg(), run_pos()
     end
     
-    return MDCCurve(sol_pos, sol_neg)
+    return MDCCurve(sol_pos, sol_neg, sys)
 end
 
 """
@@ -470,18 +470,18 @@ function (curve::MDCCurve)(t::Real; type=:all)
 end
 
 function Base.show(io::IO, ::MIME"text/plain", curve::MDCCurve)
-    # Extract structural constraints safely
-    sample_sol = !isnothing(curve.positive_sol) ? curve.positive_sol : curve.negative_sol
-    if isnothing(sample_sol)
+    # 1. Handle uninitialized case safely using the new spec field
+    if isnothing(curve.spec)
         print(io, "Empty MDCCurve (uninitialized).")
         return
     end
     
-    sys = sample_sol.prob.p
+    sys = curve.spec
     N_params = length(sys.θ₀)
 
-neg_max = !isnothing(curve.negative_sol) ? abs(minimum(curve.negative_sol.t)) : 0.0
-pos_max = !isnothing(curve.positive_sol) ? maximum(curve.positive_sol.t) : 0.0
+    # 2. Extract trajectory spans safely
+    neg_max = !isnothing(curve.negative_sol) ? abs(minimum(curve.negative_sol.t)) : 0.0
+    pos_max = !isnothing(curve.positive_sol) ? maximum(curve.positive_sol.t) : 0.0
 
     println(io, "Minimally Disruptive Curve (MDCCurve)")
     println(io, "====================================")
@@ -490,12 +490,16 @@ pos_max = !isnothing(curve.positive_sol) ? maximum(curve.positive_sol.t) : 0.0
     println(io, "  • Initial Cost (C₀)    : ", round(sys.cost(sys.θ₀), digits=5))
     println(io, "  • Total Energy (H)     : ", sys.momentum)
     
-    # Identify the ultimate parameter changes at boundaries
+    # 3. Identify ultimate parameter changes at boundaries
     state_pos = !isnothing(curve.positive_sol) ? curve.positive_sol.u[end][1:N_params] : sys.θ₀
     state_neg = !isnothing(curve.negative_sol) ? curve.negative_sol.u[end][1:N_params] : sys.θ₀
     
+    # 4. Print parameter shifts using mapped names
     println(io, "  • Max Parameter Shifts :")
     for i in 1:N_params
-        println(io, "      θ_$i: [", round(state_neg[i], digits=3), " ↔ ", round(state_pos[i], digits=3), "]")
+        # Fallback to standard index notation if names vector is empty or incomplete
+        p_name = (isassigned(sys.names, i) && !isnothing(sys.names[i])) ? string(sys.names[i]) : "θ_$i"
+        
+        println(io, "      ", rpad(p_name, 20), ": [", round(state_neg[i], digits=3), " ↔ ", round(state_pos[i], digits=3), "]")
     end
 end

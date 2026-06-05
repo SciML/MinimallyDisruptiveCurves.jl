@@ -1,11 +1,11 @@
-using ModelingToolkit
+using ModelingToolkit, Plots
 using OrdinaryDiffEq
 using ForwardDiff
 using PreallocationTools
 using SymbolicIndexingInterface
 using SymbolicIndexingInterface: parameter_values
 using SciMLStructures: Tunable, canonicalize, replace
-using SciMLBase
+using SciMLBase, LinearAlgebra
 # ==========================================
 # 1. Setup MTK Network & Base ODE Problem
 # ==========================================
@@ -29,7 +29,6 @@ target_observables = [
 # ==========================================
 # 3. Dynamic Parameter Identification
 # ==========================================
-# Clean intersection ensures we only pass active, system-level symbols
 params_to_optimize = tunable_parameters(sys) ∩ parameters(sys)
 
 println("Natively optimizing $(length(params_to_optimize)) tunable parameters.")
@@ -95,17 +94,11 @@ println("\n--- Running Scaled Loss Function Evaluation ---")
 
 x_nominal = getter(prob)
 loss_at_nominal = loss_function(x_nominal, p_tuple)
-println("Loss at nominal parameters: ", loss_at_nominal)
-
-# Perturb all 24 parameters at once to check scaling response
-x_perturbed = x_nominal .* 1.10  
-loss_at_perturbed = loss_function(x_perturbed, p_tuple)
-
 
 # A clean, global-safe closure for the value calculation
 f_wrapped = θ -> loss_function(θ, p_tuple)
 
-# Pre-allocate the ForwardDiff configuration to keep it lightning-fast and allocation-free
+# Pre-allocate the ForwardDiff configuration to keep it allocation-free
 x_nominal = getter(prob)
 cfg = ForwardDiff.GradientConfig(f_wrapped, x_nominal, ForwardDiff.Chunk(x_nominal))
 
@@ -114,9 +107,35 @@ grad_wrapped! = function (g, θ)
     ForwardDiff.gradient!(g, f_wrapped, θ, cfg)
 end
 
-
-# This instantiates your package structs perfectly without a single line changed inside it!
 base_cost = CostFunction(f_wrapped, grad_wrapped!)
-
 pipeline = TransformChain(LogAbsTransform())
 final_cost = TransformedCost(base_cost, pipeline)
+x_nominal_transformed = MinimallyDisruptiveCurves.inverse(pipeline, x_nominal)
+hess0 = ForwardDiff.hessian(θ -> final_cost(θ), x_nominal_transformed)
+vs, vals = sparse_eigenbasis(hess0, 5; λ=0.01)
+
+# 1. Initialize an empty dictionary to store the results
+mdc_curves = Dict{Int, Any}()
+
+# 2. Loop through the desired indices
+for i in 1:5
+    println("--- Running MDC for index i = $i ---")
+    
+    # Create the system dynamically using the i-th direction
+    mdc_sys = MDCSystem(
+        final_cost, 
+        x_nominal_transformed, 
+        vs[i],                # Replaced e_dirs(i) directly with vs[i]
+        1.0;                  # Hamiltonian / momentum (H)
+        names = params_to_optimize .|> Symbol
+    )
+
+    # Set up the pipeline for this iteration
+    stabiliser  = mdc_momentum_readjustment(mdc_sys; tol = 1e-3)
+    my_pipeline = CallbackSet(stabiliser)
+
+    # Solve and store the result in your dictionary
+    @time curves_i = MDCsolve(mdc_sys, span = MDCSpan(-10.0, 10.0); callback = my_pipeline)
+    
+    mdc_curves[i] = curves_i
+end

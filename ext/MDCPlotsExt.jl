@@ -2,7 +2,7 @@ module MDCPlotsExt
 
 using MinimallyDisruptiveCurves
 using Plots
-using Plots.PlotMeasures 
+using Plots.PlotMeasures
 
 import MinimallyDisruptiveCurves: MDCCurve, animate_mdc, transform_names
 

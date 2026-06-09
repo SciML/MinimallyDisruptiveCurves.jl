@@ -24,7 +24,11 @@ function evolve(
     probs = c()
     !isnothing(saved_values) && (probs = saving_callback.(probs, saved_values))
 
-    prob_func = (prob, i, repeat) -> probs[i]
+    # EnsembleProblem's prob_func signature differs across SciMLBase versions:
+    # v2 calls `(prob, i::Int, repeat)`, v3 calls `(prob, ctx::EnsembleContext)`
+    # where the trajectory index is `ctx.sim_id`.
+    prob_func(prob, i::Integer, repeat) = probs[i]
+    prob_func(prob, ctx) = probs[ctx.sim_id]
 
     callbacks = CallbackSet(
         build_callbacks(c, mdc_callback, momentum_tol)...,

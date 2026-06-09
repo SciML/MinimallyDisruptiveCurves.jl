@@ -38,7 +38,6 @@ julia = "1.12"
 [workspace]
 projects = ["docs"]
 
-
 [extras]
 AllocCheck = "9b6a8646-10ed-4001-bbdc-1d2f46dfbb1a"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"

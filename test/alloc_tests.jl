@@ -1,23 +1,12 @@
 using MinimallyDisruptiveCurves
 using LinearAlgebra
 using Test
-
-# AllocCheck is optional - only load if available
-const HAVE_ALLOCCHECK = try
-    @eval using AllocCheck
-    true
-catch
-    false
-end
-
+using AllocCheck
 """
 Allocation tests for performance-critical paths in MinimallyDisruptiveCurves.jl
-
-These tests verify that the core dynamics function and related hot paths
-do not allocate memory during execution, ensuring optimal performance.
+`GROUP="Alloc" julia --project -e 'using Pkg; Pkg.test()`
 """
 
-# Create a simple non-allocating cost function for testing
 function test_cost_noalloc(p)
     s = 0.0
     @inbounds for i in eachindex(p)
@@ -26,75 +15,65 @@ function test_cost_noalloc(p)
     return s
 end
 
-function test_cost_grad_noalloc!(p, g)
-    s = 0.0
+function test_cost_grad_noalloc!(g, p)
     @inbounds for i in eachindex(p)
-        d = p[i] - Float64(i)
-        g[i] = 2 * d
-        s += d^2
+        g[i] = 2.0 * (p[i] - Float64(i))
     end
-    return s
+    return nothing
 end
 
-@testset "Allocation Tests" begin
-    # Set up the test problem
-    diff_cost = DiffCost(test_cost_noalloc, test_cost_grad_noalloc!)
+@testset "Allocation & Dynamic Hot-Path Tests" begin
+    # 2. Build new structural pipeline components
+    core_cost = CostFunction(test_cost_noalloc, test_cost_grad_noalloc!)
+    cost = TransformedCost(core_cost) # Identity transform chain default
+
     p0 = [1.0, 2.0, 3.0]
     dp0 = [1.0, 0.0, 0.0]
-    momentum = 1.0
-    tspan = (-2.0, 1.0)
+    momentum = 10.0
 
-    eprob = MDCProblem(diff_cost, p0, dp0, momentum, tspan)
-    probs = eprob()
-    prob = probs[1]
-    f = prob.f
-    u0 = prob.u0
+    sys = MDCSystem(cost, p0, dp0, momentum; names = [:a, :b, :c])
+    ws = MDCWorkspace(sys)
+
+    λ₀ = MinimallyDisruptiveCurves.initialise_lambda(sys, ws)
+    f! = vectorfield(sys)
+
+    u0 = [p0; λ₀]
     du = similar(u0)
-    t = 0.0
-    p = nothing
 
-    # Warm up the function
-    f(du, u0, p, t)
-    f(du, u0, p, t)
+    # Warmups
+    f!(du, u0, nothing, 0.0)
+    MinimallyDisruptiveCurves.mdc_dHdu_residual(sys, u0, 0.0)
 
-    @testset "Dynamics function allocations" begin
-        # Test that the dynamics function does not allocate
-        # Using @allocated for runtime check
-        allocs = @allocated f(du, u0, p, t)
-
-        # We expect 0 allocations when using a non-allocating cost function
-        @test allocs == 0
+    @testset "Dynamics Vector Field Allocations" begin
+        allocs = @allocated f!(du, u0, nothing, 0.0)
+        @test allocs == 0 # sacrificed completely allocation free as cost function evaluation is the major cost.allocs=80 for current version
     end
 
-    @testset "Dynamics function correctness" begin
-        # Verify the dynamics produces valid (finite) output
-        f(du, u0, p, t)
+    @testset "Dynamics Functional Correctness" begin
+        f!(du, u0, nothing, 0.0)
         @test all(isfinite, du)
-        @test !all(iszero, du)  # Should produce non-zero derivatives
+        @test !all(iszero, du)
     end
 
-    @testset "DiffCost allocations" begin
-        # Test DiffCost evaluation does not allocate
-        grad = similar(p0)
-
-        # Warm up
-        diff_cost(p0)
-        diff_cost(p0, grad)
-
-        # Test without gradient
-        allocs_no_grad = @allocated diff_cost(p0)
-        @test allocs_no_grad == 0
-
-        # Test with gradient
-        allocs_with_grad = @allocated diff_cost(p0, grad)
-        @test allocs_with_grad == 0
+    @testset "Mathematical Residual Allocations" begin
+        res_allocs = @allocated MinimallyDisruptiveCurves.mdc_dHdu_residual(sys, u0, 1.0)
+        @test res_allocs == 0
     end
 
-    @testset "Initial conditions" begin
-        # Test that initial conditions computation is correct
-        ic = MinimallyDisruptiveCurves.initial_conditions(eprob)
-        @test length(ic) == 2 * length(p0)
-        @test ic[1:length(p0)] == p0
-        @test all(isfinite, ic)
+    @testset "TransformedCost Wrap Allocations" begin
+        g_buffer = similar(p0)
+
+        # Calculate N_physical manually for the test workspace
+        N_physical = length(MinimallyDisruptiveCurves.forward(cost.chain, p0))
+        gz_buffer = Vector{eltype(p0)}(undef, N_physical)
+
+        # Warmups - Matching your performance critical internally invoked layout
+        cost(p0)
+        cost(p0, g_buffer, gz_buffer) # Warm up the true 3-arg hot-path
+        @test (@allocated cost(p0)) == 0
+
+        # Test true hot-path value + gradient pullback pass
+        @test (@allocated cost(p0, g_buffer, gz_buffer)) == 0
     end
+
 end

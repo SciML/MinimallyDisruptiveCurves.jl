@@ -1,24 +1,41 @@
-using MinimallyDisruptiveCurves
+using SafeTestsets
 using Test
 
 const GROUP = get(ENV, "GROUP", "All")
 
-@testset "MinimallyDisruptiveCurves.jl" begin
+@testset "MinimallyDisruptiveCurves.jl Suite" begin
+
+    # --- 1. CORE FUNCTIONAL TESTS ---
     if GROUP == "All" || GROUP == "Core"
-        @testset "mass_spring" begin
-            include("mass_spring.jl")
+        @safetestset "Transforms & Pullback Analytics" begin
+            include("test_transforms.jl")
+        end
+
+        @safetestset "Cost Wrapper Mechanics" begin
+            include("test_costs.jl")
+        end
+
+        @safetestset "Solver Pipelines & Integration" begin
+            include("test_solvers.jl")
+        end
+
+        @safetestset "Safety Controls & System Guards" begin
+            include("test_callbacks.jl")
         end
     end
 
+    # --- 2. PERFORMANCE ALLOCATION CHECKING ---
     if GROUP == "All" || GROUP == "Alloc"
-        @testset "allocation_tests" begin
-            include("alloc_tests.jl")
+        @safetestset "Allocation Checks" begin
+            include("alloc_tests.jl") # Keeps your allocation tests isolated
         end
     end
 
+    # --- 3. LINTING AND IMPORT CLEANLINESS ---
     if GROUP == "All" || GROUP == "ExplicitImports"
-        @testset "Explicit Imports" begin
-            include("explicit_imports.jl")
+        @safetestset "Explicit Imports Compliance" begin
+            include("explicit_imports.jl") # Verifies scoping rules
         end
     end
+
 end

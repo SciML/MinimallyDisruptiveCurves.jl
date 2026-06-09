@@ -1,78 +1,101 @@
 # Precompilation workload for MinimallyDisruptiveCurves.jl
-# This file is included at the end of the main module to trigger precompilation
-# of commonly-used code paths during package installation.
+# This file is included at the end of the main module to cache compiled methods.
 
 using PrecompileTools: @setup_workload, @compile_workload
 
 @setup_workload begin
-    # Put setup code here (imports, test data setup)
-    # This code is NOT precompiled but runs during precompilation
-    using LinearAlgebra: norm, dot, eigen
-    using ForwardDiff: ForwardDiff
-    using OrdinaryDiffEq: Tsit5
-
-    # Simple test cost function
-    _p0 = [1.0, 2.0, 3.0]
+    # ----------------------------------------------------------------
+    # 1. Setup Mock Data and Mock Functions
+    # ----------------------------------------------------------------
+    # A simple 2D Rosenbrock-like cost function for execution speed
     function _simple_cost(p)
-        a = 1.0
-        b = 10.0
-        return sum((a .- p) .^ 2) + sum(b .* (p[2:end] .- p[1:(end - 1)] .^ 2) .^ 2)
+        return (1.0 - p[1])^2 + 10.0 * (p[2] - p[1]^2)^2
     end
 
-    function _simple_cost_grad!(p, g)
-        n = length(p)
+    # Allocation-free finite-difference gradient loop
+    function _simple_cost_grad!(g, p)
         ε = 1.0e-8
-        for i in 1:n
-            p_plus = copy(p)
-            p_plus[i] += ε
-            g[i] = (_simple_cost(p_plus) - _simple_cost(p)) / ε
+        # Cache a single mutable working vector instead of recreating it in the loop
+        p_perturbed = copy(p)
+        for i in eachindex(p)
+            orig = p_perturbed[i]
+            p_perturbed[i] = orig + ε
+            cost_plus = _simple_cost(p_perturbed)
+            p_perturbed[i] = orig # Reset element
+
+            g[i] = (cost_plus - _simple_cost(p)) / ε
         end
-        return _simple_cost(p)
+        return nothing
     end
+
+    # Define physical baseline configurations
+    θ_physical_nominal = [1.1, 1.1]
+    dθ_physical_nominal = [1.2, 1.2]
+    H_val = 10.0         # Ensure H > initial cost
+    mock_physical_names = [:param_A, :param_B]
 
     @compile_workload begin
-        # Put code to precompile here
-        # This code runs during precompilation and triggers compilation of the code paths
+        # ----------------------------------------------------------------
+        # 2. Precompile Cost and Transform Chains
+        # ----------------------------------------------------------------
+        core_cost = CostFunction(_simple_cost, _simple_cost_grad!)
 
-        # DiffCost creation
-        cost = DiffCost(_simple_cost, _simple_cost_grad!)
+        # Build a complete mock transform chain (Scale -> LogAbs)
+        w_vec = [1.0, 1.0]
+        chain = TransformChain(ScaleTransform(w_vec), LogAbsTransform())
 
-        # Test cost function calls
-        _ = cost(_p0)
-        _g = similar(_p0)
-        _ = cost(_p0, _g)
+        # Wrap into your TransformedCost structure
+        t_cost = TransformedCost(core_cost, chain)
 
-        # make_fd_differentiable
-        fd_cost = make_fd_differentiable(_simple_cost)
-        _ = fd_cost(_p0)
+        # Map physical test parameters into the internal optimization space coordinates
+        θ₀ = MinimallyDisruptiveCurves.inverse(chain, θ_physical_nominal)
+        dθ₀ = MinimallyDisruptiveCurves.inverse(chain, dθ_physical_nominal)
 
-        # TransformationStructure operations
-        tr = logabs_transform(_p0)
-        tr_cost, newp0 = transform_cost(cost, _p0, tr)
-        _ = tr_cost(newp0)
+        # Determine the length of the physical space vector
+        N_physical = length(MinimallyDisruptiveCurves.forward(chain, θ₀))
 
-        # MDCProblem creation
-        H0 = ForwardDiff.hessian(cost, _p0)
-        mom = 100.0
-        span = (0.0, 0.5)
-        dp0 = (eigen(H0)).vectors[:, 1]
-        dp0 = dp0 / norm(dp0)
-        eprob = MDCProblem(cost, _p0, dp0, mom, span)
+        # Run mock evaluations with the updated, allocation-free 3-argument signature
+        _val = t_cost(θ₀)
+        g_buffer = similar(θ₀)
+        gz_buffer = Vector{eltype(θ₀)}(undef, N_physical)
 
-        # Verbose callback setup (precompile callback types)
-        cb = [Verbose([CurveDistance([0.25, 0.5])])]
+        # Caches the new zero-allocation functor pathway
+        _val_grad = t_cost(θ₀, g_buffer, gz_buffer)
 
-        # evolve - the main entry point
-        # Use a very short span to minimize precompilation time
-        mdc = evolve(eprob, Tsit5; mdc_callback = cb)
+        # ----------------------------------------------------------------
+        # 3. Precompile System & Workspace Initialization
+        # ----------------------------------------------------------------
+        sys = MDCSystem(t_cost, θ₀, dθ₀, H_val; names = mock_physical_names)
+        ws = MDCWorkspace(sys)
 
-        # MDCSolution methods
-        _ = trajectory(mdc)
-        _ = costate_trajectory(mdc)
-        _ = distances(mdc)
-        _ = Δ(mdc)
+        # Trigger internal factory and lambda allocations
+        _λ₀ = MinimallyDisruptiveCurves.initialise_lambda(sys, ws)
+        _vf! = MinimallyDisruptiveCurves.vectorfield(sys)
 
-        # Solution interpolation
-        _ = mdc(0.25)
+        # ----------------------------------------------------------------
+        # 4. Precompile Solvers and Callbacks (The heaviest step)
+        # ----------------------------------------------------------------
+        # Use a minuscule span limit to keep precompilation execution near-instant
+        tiny_span = MDCSpan(-0.01, 0.01)
+
+        # Setup the default safety callback
+        cb_safety = mdc_safety_callback(sys)
+
+        # Solve the ODE (compiles Tsit5, OrdinaryDiffEq routines, and your vector field)
+        curve = MDCSolve(sys; span = tiny_span, callback = cb_safety)
+
+        # ----------------------------------------------------------------
+        # 5. Precompile Interpolation and Base Extensions
+        # ----------------------------------------------------------------
+        if !isnothing(curve.positive_sol) || !isnothing(curve.negative_sol)
+            # Trace interpolation paths
+            _ = curve(0.0, type = :all)
+            _ = curve(0.0, type = :parameters)
+            _ = curve(0.0, type = :costates)
+
+            # Precompile the custom string printing layouts
+            show_buffer = IOBuffer()
+            show(show_buffer, MIME"text/plain"(), curve)
+        end
     end
 end

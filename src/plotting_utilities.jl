@@ -1,63 +1,76 @@
-"""
-plot recipe for ::MDCSolution
-kwargs: pnames are array of parameter names
-idxs: are parameter indices to plot
-what ∈ (:trajectory, :final_changes) determines the plot type
-"""
-@recipe function f(mdc::MDCSolution; pnames = nothing, idxs = nothing, what = :trajectory)
-    if idxs === nothing
-        num = min(5, mdc.N)
-        idxs = biggest_movers(mdc, num)
+@recipe function f(
+        curve::MinimallyDisruptiveCurves.MDCCurve;
+        max_lines = nothing,
+        mode = :absolute,
+        raw = false,
+        density = 200
+    )
+
+    sample_sol = !isnothing(curve.positive_sol) ? curve.positive_sol : curve.negative_sol
+    if isnothing(sample_sol)
+        error("Cannot plot an empty MDCCurve.")
     end
-    # if !(names === nothing)
-    #     labels --> names[idxs]
-    # end
-    # ["hi" "lo" "lo" "hi" "lo"]
 
-    tfirst = mdc.sol.t[1]
-    tend = mdc.sol.t[end]
+    sys = sample_sol.prob.p
+    chain = sys.cost.chain
+    θ₀ = sys.θ₀
 
-    layout := (1, 1)
-    bottom_margin := :match
+    t_grid = range(
+        !isnothing(curve.negative_sol) ? minimum(curve.negative_sol.t) : 0.0,
+        stop = !isnothing(curve.positive_sol) ? maximum(curve.positive_sol.t) : 0.0,
+        length = density
+    )
+    sampled_states = [curve(t) for t in t_grid]
 
-    if what == :trajectory
-        @series begin
-            if !(pnames === nothing)
-                label --> reshape(pnames[idxs], 1, :)
-            end
-            title --> "change in parameters over minimally disruptive curve"
-            xguide --> "distance"
-            yguide --> "Δ parameters"
-            distances(mdc), Δ(mdc)[idxs, :]'
+    N_params = length(sampled_states[1]) ÷ 2  # so this is transformed current parameters
+
+    # Securely calculate output dimension by dry-running a single element
+    dummy_forward = MinimallyDisruptiveCurves.forward(chain, sampled_states[1][1:N_params])
+    out_dim = raw ? length(dummy_forward) : N_params
+
+    Y = Matrix{Float64}(undef, length(t_grid), out_dim)
+
+    # Non-allocating data unpacking via views
+    for (t_idx, state) in enumerate(sampled_states)
+        @views θ_current = state[1:N_params]
+        if raw
+            Y[t_idx, :] .= MinimallyDisruptiveCurves.forward(chain, θ_current)
+        else
+            Y[t_idx, :] .= θ_current
         end
     end
 
-    if what == :final_changes
-        @series begin
-            title --> "biggest changers"
-            seriestype := :bar
-            label --> "t=$tend"
-            xticks --> (1:5, reshape(pnames[idxs], 1, :))
-            xrotation --> 90
-            Δ(mdc, tend)[idxs]
-        end
-        if tfirst < 0.0
-            @series begin
-                label --> "t=$tfirst"
-                seriestype := :bar
-                xticks --> (1:5, reshape(pnames[idxs], 1, :))
-                xrotation --> 90
-                Δ(mdc, tfirst)[idxs]
-            end
+    θ₀_processed = raw ? MinimallyDisruptiveCurves.forward(chain, θ₀) : θ₀
+    if mode == :relative
+        for i in 1:out_dim
+            Y[:, i] .-= θ₀_processed[i]
         end
     end
-end
 
-"""
-    output_on_curve(f, mdc, t)
+    # Filter for Top Movers
+    active_indices = collect(1:out_dim)
+    if !isnothing(max_lines) && max_lines < out_dim
+        movements = [maximum(Y[:, i]) - minimum(Y[:, i]) for i in 1:out_dim]
+        active_indices = sortperm(movements, rev = true)[1:max_lines]
+        Y = Y[:, active_indices]
+    end
 
-Useful when building an animation of f(p) as the parameters p vary along the curve.
-"""
-function output_on_curve(f, mdc, t)
-    return f(mdc(t)[:states])
+    # Metadata Alignment
+    title_suffix = mode == :relative ? " (Δ Change)" : (raw ? " (Raw Physical Units)" : " (Transformed Space)")
+    title  --> "MDC Parameter Trajectories$title_suffix"
+    xlabel --> "Arc Length Path Coordinate (t)"
+    ylabel --> (mode == :relative ? "Δ Value" : "Value")
+
+    # Safe fallback mapping for labels
+    if raw
+        labels = [string(sys.names[i]) for i in active_indices]
+        # labels = [string("hi") for i in active_indices]
+    else
+        labels = [string(n) for n in transform_names(chain, sys.names)][active_indices]
+    end
+
+    label  --> reshape(labels, 1, length(active_indices))
+    linewidth --> 2
+
+    return collect(t_grid), Y
 end

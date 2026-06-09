@@ -1,52 +1,35 @@
 module MinimallyDisruptiveCurves
 
-using DiffEqCallbacks: DiffEqCallbacks, FunctionCallingCallback, PresetTimeCallback,
-    SavedValues, SavingCallback
-using FiniteDiff: FiniteDiff
-using ForwardDiff: ForwardDiff
-using LinearAlgebra: LinearAlgebra, diagm, dot, norm, svd
-using ModelingToolkit: ModelingToolkit, Num, ODEFunction, ODEProblem, ODESystem,
-    equations, independent_variable, modelingtoolkitize,
-    parameters, structural_simplify, substitute, unknowns, variable
-using OrdinaryDiffEq: OrdinaryDiffEq, CallbackSet, DiscreteCallback, Tsit5, remake, solve
-using RecipesBase: RecipesBase, @recipe, @series
-using SciMLBase: SciMLBase, EnsembleProblem, EnsembleThreads, terminate!
-using ThreadsX: ThreadsX
+using RecipesBase: RecipesBase, @recipe
+using LinearAlgebra: LinearAlgebra, dot, norm, eigen, mul!, normalize!
+using OrdinaryDiffEq: DiscreteCallback, ODEProblem, Tsit5
+import OrdinaryDiffEq: solve
 
-include("MDCTypes.jl")
-include("MDCProblem.jl")
-include("MDCProblemJumpstart.jl")
-include("MDCSolution.jl")
+# 2. Grab the specific callback utilities from their native packages
+using DiffEqCallbacks: PresetTimeCallback
+using SciMLBase: terminate!
+
+include("transforms.jl")
+include("costInterface.jl")
+include("MDCSystem.jl")
 include("plotting_utilities.jl")
-include("utilities/loss_algebra.jl")
-include("utilities/extra_loss_functions.jl")
-include("utilities/helper_functions.jl")
-include("utilities/solution_parsing.jl")
-include("utilities/transform_structures.jl")
-include("evolve_options.jl")
-include("evolve.jl")
+include("utilities.jl")
 
 import Base.show
 
-export DiffCost, make_fd_differentiable, l2_hessian
+export AbstractTransform, TransformChain, ScaleTransform, LogAbsTransform, FixedParamsTransform, OnlyFreeParamsTransform
+export AbstractCost, CostFunction, TransformedCost, inverse, forward, gradient!
+export MDCSolve, MDCSystem, MDCWorkspace, vectorfield, ODEProblem, MDCSpan
 
-export CurveProblem, specify_curve, evolve, trajectory, costate_trajectory
-export MDCProblem, MDCProblemJumpStart, JumpStart, jumpstart
+export mdc_safety_callback, mdc_bounds_callback, mdc_verbose_callbacks
+export mdc_dHdu_residual, mdc_momentum_readjustment
 
-export TransformationStructure, logabs_transform, bias_transform, transform_problem,
-    transform_ODESystem, only_free_params, fix_params, transform_cost
 
-export sum_losses, build_injection_loss, get_name_ids, soft_heaviside, biggest_movers,
-    get_ids_names
+function animate_mdc end
+export animate_mdc
 
-export MomentumReadjustment, StateReadjustment, VerboseOutput, ParameterBounds,
-    CurveInfoSnippet, CurveDistance, HamiltonianResidual, Verbose, TerminalCond,
-    CallbackCallable
-
-export Δ, distances, trajectory, costate_trajectory, add_cost, cost_trajectory,
-    output_on_curve
+export sparse_init_dir, sparse_eigenbasis
 
 # Precompilation workload (must be at the end)
 include("precompilation.jl")
-
 end # module

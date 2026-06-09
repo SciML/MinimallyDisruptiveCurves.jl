@@ -1,33 +1,42 @@
 name = "MinimallyDisruptiveCurves"
 uuid = "c6328df5-4af8-4637-a9e9-78ed74a2ae2b"
-version = "0.3.5"
+version = "0.4.0"
 authors = ["Dhruva Venkita Raman"]
 
 [deps]
 DiffEqCallbacks = "459566f4-90b8-5000-8ac3-15dfb0a30def"
-FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
-ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
+PreallocationTools = "d236fae5-4411-538c-8e31-a6e3d9e00b46"
 PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
-SteadyStateDiffEq = "9672c7b4-1e72-59bd-8a11-6ac3964bc41f"
-ThreadsX = "ac1d9e8a-700a-412c-b207-f0111f4b6c0d"
+SciMLStructures = "53ae85a6-f571-4167-b2af-e1d143709226"
+SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
+
+[weakdeps]
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+
+[extensions]
+MDCPlotsExt = "Plots"
 
 [compat]
-DiffEqCallbacks = "2.16, 3, 4"
-FiniteDiff = "2.8"
-ForwardDiff = "0.10, 1.3"
-ModelingToolkit = "8, 9, 11.26"
-OrdinaryDiffEq = "6, 7"
-PrecompileTools = "1"
-RecipesBase = "1"
-SciMLBase = "2, 3.1"
-SteadyStateDiffEq = "2"
-ThreadsX = "0.1.8"
-julia = "1.10"
+DifferentiationInterface = "0.7.12"
+SymbolicIndexingInterface = "0.3"
+DiffEqCallbacks = "4.17"
+LinearAlgebra = "1.10"
+OrdinaryDiffEq = "7"
+Plots = "1.40"
+PreallocationTools = "1.2"
+PrecompileTools = "1.0"
+RecipesBase = "1.3"
+SciMLBase = "3.17"
+SciMLStructures = "1.10"
+julia = "1.12"
+
+[workspace]
+projects = ["docs"]
 
 [extras]
 AllocCheck = "9b6a8646-10ed-4001-bbdc-1d2f46dfbb1a"
@@ -37,11 +46,10 @@ DiffEqCallbacks = "459566f4-90b8-5000-8ac3-15dfb0a30def"
 ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["AllocCheck", "BenchmarkTools", "DiffEqCallbacks", "ExplicitImports", "LinearAlgebra", "Test", "ForwardDiff", "ModelingToolkit", "OrdinaryDiffEq", "SafeTestsets", "Symbolics"]
+test = ["AllocCheck", "BenchmarkTools", "DiffEqCallbacks", "ExplicitImports", "LinearAlgebra", "Test", "ForwardDiff", "OrdinaryDiffEq", "SafeTestsets", "Symbolics"]

@@ -95,7 +95,7 @@ my_pipeline = CallbackSet(stabilizer)
 
 
 
-mdc_curves = MDCsolve(sys, span=MDCSpan(-5.0, 5.0), callback=my_pipeline; mode=:fast)
+mdc_curves = MDCSolve(sys, span=MDCSpan(-5.0, 5.0), callback=my_pipeline; mode=:fast)
 
 
 # ====================================================================

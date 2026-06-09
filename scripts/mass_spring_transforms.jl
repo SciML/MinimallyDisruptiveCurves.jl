@@ -95,7 +95,7 @@ stabilizer = mdc_momentum_readjustment(sys; tol=1e-3)
 my_pipeline = CallbackSet(stabilizer)
 
 println("Launching parallel manifold integration...")
-mdc_curves = MDCsolve(sys, span=MDCSpan(-5.0, 5.0), callback=my_pipeline)
+mdc_curves = MDCSolve(sys, span=MDCSpan(-5.0, 5.0), callback=my_pipeline)
 
 # ====================================================================
 # --- Verification & Analysis ---

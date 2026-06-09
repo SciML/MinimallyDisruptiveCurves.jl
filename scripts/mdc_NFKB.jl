@@ -135,7 +135,7 @@ for i in 1:5
     my_pipeline = CallbackSet(stabiliser)
 
     # Solve and store the result in your dictionary
-    @time curves_i = MDCsolve(_mdc_sys, span = MDCSpan(-10.0, 10.0); callback = my_pipeline)
+    @time curves_i = MDCSolve(_mdc_sys, span = MDCSpan(-10.0, 10.0); callback = my_pipeline)
     
     mdc_curves[i] = curves_i
 end

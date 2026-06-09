@@ -2,11 +2,16 @@
 # --- Core MDC Structs ---
 # ====================================================================
 
+"""
+    MDCSystem(cost, theta0, dtheta0, momentum, names)
+
+Holds and specifies the information needed to evolve an MD curve. names is an optional vector of symbols holding parameter names.
+"""
 struct MDCSystem{T, C, V<:AbstractVector{T}}
     cost::C          # TransformedCost structure
     θ₀::V            # Initial parameter vector
     dθ₀::V            # Initial parameter direction
-    momentum::T      # H parameter
+    momentum::T      
     names::Vector{Symbol}
 end
 
@@ -16,6 +21,10 @@ function Base.show(io::IO, ::MIME"text/plain", sys::MDCSystem)
     print(io, "Momentum cap (H): ", sys.momentum)
 end
 
+"""
+    TransformedCost(core_cost::CostFunction)
+    
+"""
 function TransformedCost(core_cost::CostFunction)
     return TransformedCost(core_cost, TransformChain())
 end
@@ -50,11 +59,18 @@ function MDCWorkspace(sys::MDCSystem)
     )
 end
 
+"""
+    MDCSpan(lower_bound <= 0, upper_bound >= 0)
+Specifies the length of the MDC curve. negative values mean evolving th curve in the negative direction of the initial direction. If `lower_bound < 0` and `upper_bound > 0` then the curve evolution happens in two separate solves. 
+"""
 struct MDCSpan{T<:AbstractFloat}
     negative::T
     positive::T
 end
 
+"""
+Object holding information on evolved curve. (c::MDCurve).spec gives the MDCSystem from which it was generated 
+"""
 struct MDCCurve{P, N, C <: MDCSystem}
     positive_sol::P
     negative_sol::N
@@ -62,19 +78,15 @@ struct MDCCurve{P, N, C <: MDCSystem}
 end
 
 
-# ====================================================================
-# --- Initial Conditions Generator ---
-# ====================================================================
-
+"""
+    Initialises costates based on momentum and initial param direction. Internal use.
+    
+"""
 function initialise_lambda(sys::MDCSystem, ws::MDCWorkspace)
     θ₀ = sys.θ₀
     dθ₀ = sys.dθ₀  # Your user-supplied initial parameter direction
     H = sys.momentum
-    
     C = sys.cost(θ₀, ws.grad_cache)
-    
-    # Safety Check: Total energy (H) must exceed potential energy (C) 
-    # for kinetic energy (H - C) to be strictly positive.
     if H <= C
         error("Momentum parameter H ($H) must be strictly greater than initial cost C ($C).")
     end
@@ -86,10 +98,10 @@ function initialise_lambda(sys::MDCSystem, ws::MDCWorkspace)
     return λ₀
 end
 
-# ====================================================================
-# --- ODE Vector Field Factory ---
-# ====================================================================
-
+"""
+    vectorfield(sys::MDCSystem)
+Function factory to generate the vector field for the MDC  
+"""
 function vectorfield(sys::MDCSystem)
     cost = sys.cost
     θ₀ = sys.θ₀
@@ -99,7 +111,7 @@ function vectorfield(sys::MDCSystem)
     N_physical = length(forward(chain, θ₀))
 
 
-    # Allocate simple optimization space caches once per thread closure
+    # Allocate space caches once per thread closure
     grad_cache = Vector{eltype(θ₀)}(undef, N)          
     diff_θ     = Vector{eltype(θ₀)}(undef, N)          
     gz_cache   = Vector{eltype(θ₀)}(undef, N_physical)
@@ -115,11 +127,9 @@ function vectorfield(sys::MDCSystem)
             @. diff_θ = θ - θ₀
             dist = sum(abs2, diff_θ)
 
-            # 1. Evaluate the cost function using its original functor layout
-            # This will handle its own forward/pullback cleanly.
             C = cost(θ, grad_cache, gz_cache)
 
-            # --- Standard MDC Core Math ---
+            # --- MDC Core equations---
             μ2 = (C - H) / 2.0
             μ2 = (C - H) / 2.0
             μ2_smooth = sign(μ2) * sqrt(μ2^2 + 1e-20)
@@ -146,14 +156,14 @@ function vectorfield(sys::MDCSystem)
 end
 
 # ====================================================================
-# --- Core Mathematical Residual Checker ---
+# --- Callbacks for numerical stability ---
 # ====================================================================
 
 """
     mdc_dHdu_residual(sys::MDCSystem, u, t)
 
-Computes the raw L1 numerical drift from the theoretical identity dHdu = 0.
-This is allocation-free and operates directly on the raw state vector `u`.
+Computes the raw L1 numerical drift from dHdu = 0.
+This operates directly on the raw state vector `u`.
 """
 function mdc_dHdu_residual(sys::MDCSystem, u, t)
     N = length(sys.θ₀)
@@ -163,11 +173,9 @@ function mdc_dHdu_residual(sys::MDCSystem, u, t)
     θ = @view u[1:N]
     λ = @view u[N+1:end]
     
-    # Value-only evaluation to compute current potential energy cost
     C = sys.cost(θ)
     μ2 = (C - H) / 2.0
 
-    # Avoid allocation when computing dot products
     λ_dot_λ = dot(λ, λ)
     λ_dot_diff = zero(eltype(u))
     @inbounds for i in 1:N
@@ -178,7 +186,7 @@ function mdc_dHdu_residual(sys::MDCSystem, u, t)
     μ1 = abs(t) > 1e-3 ? (λ_dot_λ - 4.0 * μ2^2) / λ_dot_diff : 0.0
     inv_2μ2 = 1.0 / (2.0 * μ2)
 
-    # Calculate unnormalised dθ norm in a single allocation-free loop
+    # Calculate unnormalised dθ norm 
     dθ_norm_sq = zero(eltype(u))
     @inbounds for i in 1:N
         dθ_i = (-λ[i] + μ1 * (θ[i] - θ₀[i])) * inv_2μ2
@@ -186,7 +194,7 @@ function mdc_dHdu_residual(sys::MDCSystem, u, t)
     end
     dθ_norm = sqrt(dθ_norm_sq)
 
-    # Accumulate the L1 discrepancy: sum(abs(λ + 2 * μ2 * dθ_normalised))
+    # Accumulate L1 discrepancy: sum(abs(λ + 2 * μ2 * dθ_normalised))
     residual = zero(eltype(u))
     if dθ_norm > 1e-8
         @inbounds for i in 1:N
@@ -207,20 +215,20 @@ end
 
 Creates a DiscreteCallback that watches the dHdu numerical drift. If it 
 exceeds `tol`, the costate (λ) is orthogonally projected back onto the 
-energy manifold where the Hamiltonian derivative identity matches perfectly.
+manifold where the Hamiltonian derivative identity holds.
 """
 function mdc_momentum_readjustment(sys::MDCSystem; tol=1e-3)
     N = length(sys.θ₀)
     H = sys.momentum
     θ₀ = sys.θ₀
 
-    # 1. Condition: Evaluate if drift exceeds threshold
+    # 1. Condition: does drift exceed threshold
     condition = (u, t, integrator) -> begin
         res = mdc_dHdu_residual(sys, u, t)
         return res > tol
     end
 
-    # 2. Affect: Force-recalculate the costate vector along the proper path gradient
+    # 2. Affect: Force the costate vector onto the proper path gradient
     affect! = (integrator) -> begin
         u = integrator.u
         θ = @view u[1:N]
@@ -239,7 +247,7 @@ function mdc_momentum_readjustment(sys::MDCSystem; tol=1e-3)
         inv_2μ2 = 1.0 / (2.0 * μ2)
 
         # Build dθ projection layout in-place directly onto the integrator's costate views
-        # We reuse the trailing space of the state vector safely.
+        # Reuse trailing space of state vector safely.
         dθ_norm_sq = zero(eltype(u))
         @inbounds for i in 1:N
             dθ_i = (-λ[i] + μ1 * (θ[i] - θ₀[i])) * inv_2μ2
@@ -259,11 +267,6 @@ function mdc_momentum_readjustment(sys::MDCSystem; tol=1e-3)
 
     return DiscreteCallback(condition, affect!)
 end
-
-
-# ====================================================================
-# --- Core Catastrophe Guard (Highly Recommended Default) ---
-# ====================================================================
 
 """
     mdc_safety_callback(sys::MDCSystem; tol=1e-4)
@@ -287,10 +290,6 @@ function mdc_safety_callback(sys::MDCSystem; tol=1e-4)
     
     return DiscreteCallback(condition, affect!)
 end
-
-# ====================================================================
-# --- Parameter Bounds Factory ---
-# ====================================================================
 
 """
     mdc_bounds_callback(ids, lbs, ubs)
@@ -317,9 +316,6 @@ function mdc_bounds_callback(ids::Vector{<:Integer}, lbs::Vector{<:Number}, ubs:
     return DiscreteCallback(condition, affect!)
 end
 
-# ====================================================================
-# --- Logging / Verbose Factory ---
-# ====================================================================
 
 """
     mdc_verbose_callbacks(sys::MDCSystem, timepoints; is_negative=false)
@@ -351,14 +347,8 @@ function mdc_verbose_callbacks(sys::MDCSystem, timepoints; is_negative=false)
 end
 
 
-
-
-# ====================================================================
-# --- High Level Solve Interface ---
-# ====================================================================
-
 """
-    MDCsolve(sys::MDCSystem; kwargs...) -> MDCCurve
+    MDCSolve(sys::MDCSystem; kwargs...) -> MDCCurve
 
 Solve the Minimally Disruptive Curve (MDC) differential equations for a given system.
 
@@ -368,14 +358,13 @@ constructs a unified initial condition state vector combining parameters \$\\the
 their respective tracking sensitivities \$\\lambda_0\$.
     
 """
-function MDCsolve(sys::MDCSystem; 
+function MDCSolve(sys::MDCSystem; 
                   span=MDCSpan(-10.0, 10.0), 
                   mode=:adaptive,          
                   dt=0.01,                 
                   callback=nothing,
                   parallel=false)
     
-    # 1. Initialize workspaces and baseline layout
     ws = MDCWorkspace(sys)
     λ₀ = initialise_lambda(sys, ws)
     
@@ -387,7 +376,6 @@ function MDCsolve(sys::MDCSystem;
     
     alg = Tsit5()
 
-    # 3. Parse solver configurations based on the chosen mode
     solve_kwargs = if mode == :fixed
         (adaptive = false, dt = dt)
     elseif mode == :fast
@@ -398,11 +386,10 @@ function MDCsolve(sys::MDCSystem;
             dtmin = 1e-6, 
             unstable_check = (dt, u, p, t) -> false 
         )
-    else # :adaptive (Default safe behavior)
+    else 
         (adaptive = true,)
     end
 
-    # 4. Modified closures to RETURN the solutions
     run_neg() = begin
         if span.negative < 0.0
             local_vf_neg! = vectorfield(sys)
@@ -421,9 +408,7 @@ function MDCsolve(sys::MDCSystem;
         return nothing
     end
 
-    # 5. Integration Phase with strict assignment
     sol_neg, sol_pos = if parallel
-        # Wrap tasks and fetch their returned values
         t_neg = Threads.@spawn run_neg()
         t_pos = Threads.@spawn run_pos()
         fetch(t_neg), fetch(t_pos)
@@ -436,9 +421,8 @@ end
 
 """
     (curve::MDCCurve)(t::Real)
-
 Enables continuous interpolation across the split-span trajectory. 
-Automatically routes positive arc-lengths to `positive_sol` and negative 
+Routes positive arc-lengths to `positive_sol` and negative 
 arc-lengths to `negative_sol`.
 """
 function (curve::MDCCurve)(t::Real; type=:all)
@@ -447,8 +431,6 @@ function (curve::MDCCurve)(t::Real; type=:all)
         if !isnothing(curve.positive_sol)
             curve.positive_sol(t)
         elseif !isnothing(curve.negative_sol)
-            # Boundary stitch point: if forward is missing, 
-            # fall back to the initial state at the start of the backward path
             curve.negative_sol(0.0)
         else
             error("Cannot evaluate MDCCurve: both positive and negative solutions are empty.")
@@ -465,7 +447,6 @@ function (curve::MDCCurve)(t::Real; type=:all)
         end
     end
     
-    # 2. Vector Parsing and Slicing (Same as your current logic)
     if type == :all
         return raw_state
     end
@@ -502,9 +483,7 @@ function Base.show(io::IO, ::MIME"text/plain", curve::MDCCurve)
     state_pos = !isnothing(curve.positive_sol) ? curve.positive_sol.u[end][1:N_params] : sys.θ₀
     state_neg = !isnothing(curve.negative_sol) ? curve.negative_sol.u[end][1:N_params] : sys.θ₀
     
-    # --- DYNAMIC NAME RESOLUTION HERE ---
-    # Since we are showing the optimizer's active parameter paths, 
-    # we transform the baseline names on-the-fly.
+    #transform the baseline names on-the-fly.
     display_names = transform_names(sys.cost.chain, sys.names)
     
     println(io, "  • Max Parameter Shifts :")

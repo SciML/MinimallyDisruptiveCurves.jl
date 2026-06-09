@@ -1,8 +1,12 @@
+"""
+   Abstract type for transforms that can be chained and applied to a user-supplied cost function inside a TransformChain 
+"""
 abstract type AbstractTransform end
 
-# ====================================================================
-# --- Transform Chain ---
-# ====================================================================
+"""
+    
+Accepts a tuple of transforms. Chains them together to make a composite transform.
+"""
 struct TransformChain{T<:Tuple} <: AbstractTransform
     ts::T
 end
@@ -34,7 +38,7 @@ end
     # Compute the input parameter 'x' for the last layer
     x = inverse(last_t, y)
     
-    # Compute the structural gradient coming into this layer
+    # Compute the gradient coming into this layer
     g_in = similar(x)
     pullback!(last_t, g_in, g_out, x, y)
     
@@ -42,11 +46,7 @@ end
     return _pullback_recursive(init, g_in, x)
 end
 
-# Base Case termination loop
 @inline _pullback_recursive(::Tuple{}, g_out, y) = g_out
-
-
-
 
 function forward(tc::TransformChain{Tuple{}}, x)
     return x
@@ -65,10 +65,12 @@ function transform_names(tc::TransformChain{Tuple{}}, names::Vector{Symbol})
 end
 
 # ====================================================================
-# --- Primitive Transforms ---
+# --- Bais Transforms ---
 # ====================================================================
 
-# --- Scaling ---
+"""
+   Scales parameters by constants. Correspondingly scales the effort MD curves take to move that parameter (which is the point of this)
+"""
 struct ScaleTransform{V<:AbstractVector{Float64}} <: AbstractTransform
     w::V
 end
@@ -80,7 +82,11 @@ function pullback!(t::ScaleTransform, g_in, g_out, x, y)
     return g_in
 end
 
-# --- LogAbs ---
+"""
+Transforms the parameters by x -> log(abs(x)) (componentwise).
+- This means that MDCs trace through relative, rather than absolute, changes in parameters.
+- Means that parameter cannot cross zero (in their raw co-ordinates)
+"""
 struct LogAbsTransform <: AbstractTransform end
 
 # Forward: Optimizer Space (log) -> Physical Space (exp)
@@ -96,7 +102,9 @@ function pullback!(::LogAbsTransform, g_in, g_out, x, y)
     return g_in
 end
 
-# --- Free/Fixed Parameter Masking ---
+"""
+Fixes parameters that the user doesn't wish to change over the MD curve.
+"""
 struct FixedParamsTransform <: AbstractTransform
     free_idx::Vector{Int}
     fixed_idx::Vector{Int}
@@ -135,7 +143,7 @@ function pullback!(t::FixedParamsTransform, g_in, g_out, x, y)
 end
 
 # ====================================================================
-# --- Parameter Name Tracking Metadata Pipeline ---
+# --- Name Tracking Metadata Pipeline ---
 # ====================================================================
 
 function transform_names(t::LogAbsTransform, names::Vector{Symbol})

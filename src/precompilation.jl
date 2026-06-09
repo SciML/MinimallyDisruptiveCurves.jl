@@ -82,7 +82,7 @@ using PrecompileTools: @setup_workload, @compile_workload
         cb_safety = mdc_safety_callback(sys)
 
         # Solve the ODE (compiles Tsit5, OrdinaryDiffEq routines, and your vector field)
-        curve = MDCsolve(sys; span=tiny_span, callback=cb_safety)
+        curve = MDCSolve(sys; span=tiny_span, callback=cb_safety)
 
         # ----------------------------------------------------------------
         # 5. Precompile Interpolation and Base Extensions

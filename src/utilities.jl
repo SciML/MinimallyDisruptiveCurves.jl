@@ -1,9 +1,14 @@
+"""
+    sparse_init_dir(hessian; orthogonal_to=nothing, λ=1.0, start=nothing, trim_level=1e-5, max_iter=2000, tol=1e-6)
 
+Convenience function for generating initial MDC curve directions. Essentially provides sparse eigenvector-correlates for Hessian.
+Trims tiny nonzero values in the output direction
+    
+"""
 function sparse_init_dir(hessian; orthogonal_to=nothing, λ=1.0, start=nothing, trim_level=1e-5, max_iter=2000, tol=1e-6)
     n = size(hessian, 1)
     
-    # 1. Smart Default Initialization & Scale Estimation
-    # If the matrix is large, consider using Arpack or KrylovKit for largest/smallest pairs.
+    # 1. Initialisation & Scale Estimation
     E = eigen(hessian) 
     H_scale = E.values[end]
     effective_λ = λ * H_scale
@@ -20,7 +25,7 @@ function sparse_init_dir(hessian; orthogonal_to=nothing, λ=1.0, start=nothing, 
     grad_smooth = similar(x)
     diff_cache = similar(x)
     
-    # Ensure starting vector is properly orthogonalized from the get-go
+    # Ensure starting vector is properly orthogonalised from the get-go
     if !isnothing(orthogonal_to)
         for el in orthogonal_to
             x .-= dot(x, el) .* el
@@ -31,12 +36,11 @@ function sparse_init_dir(hessian; orthogonal_to=nothing, λ=1.0, start=nothing, 
     for iter in 1:max_iter
         copyto!(x_old, x)
         
-        # Step A: In-place Gradient Calculation (0 allocations)
+        # Step A: In-place Gradient Calculation 
         # grad = 2 * H * x
         mul!(grad_smooth, hessian, x)
         
         # Step B: Gradient Descent + Proximal Operator combined
-        # We apply the gradient step and soft-thresholding simultaneously
         @inbounds for i in 1:n
             # Compute the forward gradient step explicitly per element
             xi = x[i] - t * 2.0 * grad_smooth[i]
@@ -64,17 +68,17 @@ function sparse_init_dir(hessian; orthogonal_to=nothing, λ=1.0, start=nothing, 
             return x, 0.0
         end
         
-        # Step E: Allocation-free Convergence Check
+        # Convergence Check
         @. diff_cache = x - x_old
         if norm(diff_cache) < tol
             break
         end
     end
     
-    # Final cleanup: Hard-threshold anything beneath your trim level
+    # Hard-threshold anything beneath trim level
     @. x = ifelse(abs(x) < trim_level, 0.0, x)    
 
-    # Final re-normalization
+    # Final re-normalisation
     nx = norm(x)
     if nx > 1e-8
         x ./= nx
@@ -86,14 +90,16 @@ function sparse_init_dir(hessian; orthogonal_to=nothing, λ=1.0, start=nothing, 
     return x, val
 end
 
+"""
+    sparse_eigenbasis(hessian, num_vectors::Int; λ=1.0, trim_level=1e-5, max_iter=2000, tol=1e-6)    
 
+"""
 function sparse_eigenbasis(hessian, num_vectors::Int; λ=1.0, trim_level=1e-5, max_iter=2000, tol=1e-6)
     n = size(hessian, 1)
     if num_vectors > n
         error("num_vectors ($num_vectors) cannot exceed the dimension of the Hessian ($n).")
     end
     
-    # Pre-allocate an array of vectors to hold our basis
     basis = Vector{Vector{Float64}}()
     values = Float64[]
     
@@ -102,7 +108,6 @@ function sparse_eigenbasis(hessian, num_vectors::Int; λ=1.0, trim_level=1e-5, m
     E = eigen(hessian)
     
     for i in 1:num_vectors
-        # Use the i-th eigenvector as a smart starting guess
         start_guess = copy(E.vectors[:, i])
         
         # Pass the accumulated basis vectors to the orthogonal_to constraint

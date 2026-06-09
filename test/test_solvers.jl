@@ -56,7 +56,7 @@ using SafeTestsets
         stabilizer = mdc_momentum_readjustment(sys; tol=1e-3)
 
         # Run integration
-        mdc_curves = MDCsolve(sys, span=MDCSpan(-3.0, 3.0), callback=CallbackSet(stabilizer))
+        mdc_curves = MDCSolve(sys, span=MDCSpan(-3.0, 3.0), callback=CallbackSet(stabilizer))
 
         # Ensure both paths generated tracking solutions successfully
         @test mdc_curves.positive_sol !== nothing

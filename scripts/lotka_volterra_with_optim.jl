@@ -182,7 +182,7 @@ stabiliser  = mdc_momentum_readjustment(mdc_sys; tol = 1e-3)
 my_pipeline = CallbackSet(stabiliser)
 
 println("Launching MDC...")
-@time mdc_curves = MDCsolve(mdc_sys, span = MDCSpan(-1.0, 5.0); callback = my_pipeline)
+@time mdc_curves = MDCSolve(mdc_sys, span = MDCSpan(-1.0, 5.0); callback = my_pipeline)
 
 
 # ====================================================================

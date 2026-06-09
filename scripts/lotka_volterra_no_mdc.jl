@@ -72,7 +72,7 @@ sys = MDCSystem(
 )
 
 println("Launching parallel manifold integration...")
-mdc_curves = MDCsolve(sys, span=MDCSpan(-1.0, 5.0))
+mdc_curves = MDCSolve(sys, span=MDCSpan(-1.0, 5.0))
 
 # ====================================================================
 # --- Animation Pipeline Integration ---

@@ -6,6 +6,9 @@ using Plots.PlotMeasures
 
 import MinimallyDisruptiveCurves: MDCCurve, animate_mdc, transform_names
 
+"""
+    
+"""
 function MinimallyDisruptiveCurves.animate_mdc(
     curve::MDCCurve, 
     user_sim_func::Function; 
@@ -14,7 +17,7 @@ function MinimallyDisruptiveCurves.animate_mdc(
     max_lines = 5, 
     raw = false
 )
-    # 1. Pipeline Verification
+    # Verification
     sample_sol = !isnothing(curve.positive_sol) ? curve.positive_sol : curve.negative_sol
     if isnothing(sample_sol)
         error("Cannot animate an empty MDCCurve.")
@@ -22,11 +25,11 @@ function MinimallyDisruptiveCurves.animate_mdc(
 
     mdc_sys = hasproperty(curve, :sys) ? curve.sys : sample_sol.prob.p
     
-    # Unpack core mathematical structures
+    # Unpack
     chain = hasproperty(mdc_sys, :chain) ? mdc_sys.chain : mdc_sys.cost.chain
     θ₀    = mdc_sys.θ₀
     
-    # 2. Reconstruct Continuous Time Domain Axis Safely
+    # 2. Reconstruct Continuous Time Domain Axis 
     min_t_bound = !isnothing(curve.negative_sol) ? minimum(curve.negative_sol.t) : 0.0
     max_t_bound = !isnothing(curve.positive_sol) ? maximum(curve.positive_sol.t) : 0.0
     
@@ -72,13 +75,12 @@ function MinimallyDisruptiveCurves.animate_mdc(
     num_colors = length(active_indices)
     color_array = [Plots.palette(:auto)[mod1(i, length(Plots.palette(:auto)))] for i in 1:num_colors]
 
-    # Define custom asymmetric layout
     custom_layout = Plots.@layout [
         sim_pane
         bar_pane{0.33w} trajectory_pane
     ]
 
-    # 3. Main Linear Animation Frame Sweep
+    # 3. Main Animation Frame Sweep
     anim = Plots.@animate for (frame_idx, t_current) in enumerate(full_grid)
         
         Plots.plot(
@@ -94,7 +96,7 @@ function MinimallyDisruptiveCurves.animate_mdc(
 
         y_cursor = raw ? θ_physical[active_indices] : θ_transformed[active_indices]
 
-        # --- PANEL 1: User Physics Simulation Sandbox (Entire Top Row) ---
+        # --- PANEL 1: User Plot of simulation (Entire Top Row) ---
         Plots.plot!(subplot = 1, legend = :best)
         user_sim_func(θ_physical)
         Plots.plot!(subplot = 1, title = "Live System Behavior Profile")
@@ -123,8 +125,8 @@ function MinimallyDisruptiveCurves.animate_mdc(
             ylims = (-max_delta * 1.2, max_delta * 1.2)
         )
 
-        # --- PANEL 3: Structural Parameter Manifold Trace ---
-        # FIXED: Plot matrix structures iteratively as flat 1D vectors to avoid column bleed across subplots
+        # --- PANEL 3: Parameter Trace ---
+        # Plot matrix structures iteratively as flat 1D vectors to avoid column bleed across subplots
         for i in 1:size(Y_global, 2)
             Plots.plot!(
                 full_grid, Y_global[:, i],

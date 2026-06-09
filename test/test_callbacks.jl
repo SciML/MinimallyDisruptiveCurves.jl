@@ -50,7 +50,7 @@ using SafeTestsets
         safety_cb = mdc_safety_callback(sys)
 
         # Run a symmetric span. Both directions initialize cleanly because θ_nominal is valid.
-        mdc_curves = MDCsolve(sys, span=MDCSpan(-20.0, 20.0), callback=safety_cb)
+        mdc_curves = MDCSolve(sys, span=MDCSpan(-20.0, 20.0), callback=safety_cb)
 
         # Verify that the trajectory moving towards zero mass was caught and stopped
         @test mdc_curves.positive_sol !== nothing

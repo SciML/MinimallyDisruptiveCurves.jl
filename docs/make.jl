@@ -1,2 +1,2 @@
 using Documenter, MinimallyDisruptiveCurves
-makedocs(sitename="MinimallyDisruptiveCurves.jl Documentation")
+makedocs(sitename = "MinimallyDisruptiveCurves.jl Documentation")

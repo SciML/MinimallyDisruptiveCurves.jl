@@ -10,13 +10,13 @@ import MinimallyDisruptiveCurves: MDCCurve, animate_mdc, transform_names
     
 """
 function MinimallyDisruptiveCurves.animate_mdc(
-    curve::MDCCurve, 
-    user_sim_func::Function; 
-    fps = 15, 
-    density = 100, 
-    max_lines = 5, 
-    raw = false
-)
+        curve::MDCCurve,
+        user_sim_func::Function;
+        fps = 15,
+        density = 100,
+        max_lines = 5,
+        raw = false
+    )
     # Verification
     sample_sol = !isnothing(curve.positive_sol) ? curve.positive_sol : curve.negative_sol
     if isnothing(sample_sol)

@@ -21,7 +21,7 @@ gradient!(c::CostFunction, g, θ) = c.grad!(g, θ)
     TransformedCost(cost, chain)
 Wraps a `CostFunction` type. Applies the chain of transforms, each subtypes of `AbstractTransform` to the cost function, to alter the co-ordinate system the MD curve traces through
 """
-struct TransformedCost{C<:AbstractCost, T<:TransformChain} <: AbstractCost
+struct TransformedCost{C <: AbstractCost, T <: TransformChain} <: AbstractCost
     cost::C
     chain::T
 end
@@ -44,4 +44,3 @@ function (tc::TransformedCost)(θ, gθ)
     gz = similar(z) # Acceptable for one-off manual calls
     return tc(θ, gθ, gz)
 end
-

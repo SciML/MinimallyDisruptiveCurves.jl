@@ -3,7 +3,6 @@ Just a minimal example of making a differentiable gradient with mtk for my recor
 """
 
 
-
 using ModelingToolkit
 using OrdinaryDiffEq
 using ForwardDiff
@@ -24,38 +23,38 @@ truth_data = Array(sol_nominal(timesteps, idxs = observables(sys)))
 function loss_function(x, p_tuple)
     # Destructure optimization context
     odeprob, ts, truth, setter, diffcache, obs_symbols = p_tuple
-    
+
     ps = parameter_values(odeprob)
     buffer = get_tmp(diffcache, x)
-    
-    # Block-copy baseline tunable values to the dual-safe buffer 
+
+    # Block-copy baseline tunable values to the dual-safe buffer
     # (Prevents uninitialized garbage memory if scaling to more parameters)
     copyto!(buffer, canonicalize(Tunable(), ps)[1])
-    
+
     # Type-safe structural parameter container replacement for ForwardDiff
     ps_updated = replace(Tunable(), ps, buffer)
-    
+
     # Mutate the targeted parameters using the symbolic setter
     setter(ps_updated, x)
-    
+
     # Fast inferred problem recreation
     newprob = remake(odeprob; p = ps_updated)
     sol = solve(newprob, Tsit5(); saveat = ts)
-    
+
     if sol.retcode != SciMLBase.ReturnCode.Success
         return eltype(x)(Inf) # Strict type stability for dual-number propagation
     end
-    
+
     # Extract states cleanly via symbols
     current_data = sol(ts, idxs = obs_symbols)
-    
+
     # Allocation-free MSE calculation
     return sum(abs2, truth .- current_data) / length(truth)
 end
 
 params_to_optimize = [
-    sys.pathway.a1, 
-    sys.pathway.a2
+    sys.pathway.a1,
+    sys.pathway.a2,
 ]
 
 setter = setp(prob, params_to_optimize)
@@ -80,7 +79,7 @@ println("Loss at nominal parameters: ", loss_at_nominal)
 println("(Expected: ~0.0 or a very small numerical precision error)\n")
 
 # Evaluate at perturbed values (+25%)
-x_perturbed = x_nominal .* 1.25  
+x_perturbed = x_nominal .* 1.25
 println("Testing with perturbed parameters x = ", x_perturbed)
 
 loss_at_perturbed = loss_function(x_perturbed, p_tuple)

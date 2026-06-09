@@ -19,22 +19,22 @@ using SafeTestsets
     end
 
     # Minimal dynamic MSE cost function factory using ForwardDiff
-    function make_mse_cost_function(θ_nominal; u0=[1.0, 0.0], tspan=(0.0, 5.0), dt=0.2)
+    function make_mse_cost_function(θ_nominal; u0 = [1.0, 0.0], tspan = (0.0, 5.0), dt = 0.2)
         prob_nominal = ODEProblem(mass_spring_dynamics!, u0, tspan, θ_nominal)
-        sol_nominal = solve(prob_nominal, Tsit5(), saveat=dt)
+        sol_nominal = solve(prob_nominal, Tsit5(), saveat = dt)
         target_times = sol_nominal.t
         target_positions = [sol[1] for sol in sol_nominal.u]
-        
-        f = function(θ)
-            if any(θ .<= 1e-3)
+
+        f = function (θ)
+            if any(θ .<= 1.0e-3)
                 return 100.0 + sum(abs2, min.(zero(eltype(θ)), θ))
             end
             prob = ODEProblem(mass_spring_dynamics!, u0, tspan, θ)
-            sol = solve(prob, Tsit5(), saveat=target_times)
+            sol = solve(prob, Tsit5(), saveat = target_times)
             current_positions = [s[1] for s in sol.u]
             return sum(abs2, current_positions .- target_positions) / length(target_times)
         end
-        
+
         grad! = (g, θ) -> ForwardDiff.gradient!(g, f, θ)
         return CostFunction(f, grad!)
     end
@@ -48,15 +48,15 @@ using SafeTestsets
         u0_physical = [1.0, 0.0]
         tspan_physical = (0.0, 5.0)
 
-        core_cost = make_mse_cost_function(θ_nominal, u0=u0_physical, tspan=tspan_physical)
+        core_cost = make_mse_cost_function(θ_nominal, u0 = u0_physical, tspan = tspan_physical)
         transformed_cost = TransformedCost(core_cost, TransformChain())
 
         # Initialize tracking along the null-space trajectory direction
-        sys = MDCSystem(transformed_cost, θ_nominal, θ_nominal, 1.0; names=[:mass, :damping, :stiffness])
-        stabilizer = mdc_momentum_readjustment(sys; tol=1e-3)
+        sys = MDCSystem(transformed_cost, θ_nominal, θ_nominal, 1.0; names = [:mass, :damping, :stiffness])
+        stabilizer = mdc_momentum_readjustment(sys; tol = 1.0e-3)
 
         # Run integration
-        mdc_curves = MDCSolve(sys, span=MDCSpan(-3.0, 3.0), callback=CallbackSet(stabilizer))
+        mdc_curves = MDCSolve(sys, span = MDCSpan(-3.0, 3.0), callback = CallbackSet(stabilizer))
 
         # Ensure both paths generated tracking solutions successfully
         @test mdc_curves.positive_sol !== nothing
@@ -72,10 +72,10 @@ using SafeTestsets
         explored_km = θ_explored[3] / θ_explored[1]
 
         # Invariants must match closely along the minimally disruptive direction
-        @test explored_cm ≈ initial_cm rtol=1e-2
-        @test explored_km ≈ initial_km rtol=1e-2
+        @test explored_cm ≈ initial_cm rtol = 1.0e-2
+        @test explored_km ≈ initial_km rtol = 1.0e-2
 
         # Final MSE structural variance should be effectively zero (or very close to it)
-        @test core_cost.f(θ_explored) < 1e-4
+        @test core_cost.f(θ_explored) < 1.0e-4
     end
 end

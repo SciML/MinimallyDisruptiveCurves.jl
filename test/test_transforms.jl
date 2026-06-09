@@ -23,7 +23,7 @@ using SafeTestsets
     # ====================================================================
     # --- 2. Primitive Layers (Isolated Checking) ---
     # ====================================================================
-@testset "ScaleTransform" begin
+    @testset "ScaleTransform" begin
         weights = [2.0, 0.5, 10.0]
         st = ScaleTransform(weights)
         x = [1.0, 4.0, 0.2]
@@ -46,28 +46,28 @@ using SafeTestsets
 
     @testset "LogAbsTransform" begin
         lat = LogAbsTransform()
-    
+
         # x starts in OPTIMIZER SPACE (log domain)
-        x = [1.0, 2.0, log(1e-3)]
-    
+        x = [1.0, 2.0, log(1.0e-3)]
+
         # 1. Forward Map: Optimizer Space -> Physical Space (exp)
         # exp([1.0, 2.0, log(1e-3)]) -> [exp(1.0), exp(2.0), 1e-3]
-        y_expected = [exp(1.0), exp(2.0), 1e-3]
+        y_expected = [exp(1.0), exp(2.0), 1.0e-3]
         @test forward(lat, x) ≈ y_expected
-    
+
         # 2. Inverse Map: Physical Space -> Optimizer Space
         @test inverse(lat, forward(lat, x)) ≈ x
 
         # 3. Sensitivity Pullback
         # y is the output of forward(lat, x) -> [exp(1.0), exp(2.0), 1e-3]
-        y = forward(lat, x) 
+        y = forward(lat, x)
         g_out = [2.0, 2.0, 2.0] # Gradient coming from physical cost function
         g_in = similar(x)
-    
+
         pullback!(lat, g_in, g_out, x, y)
-    
+
         # Mathematical check: g_in = g_out * y
-        @test g_in ≈ [2.0 * exp(1.0), 2.0 * exp(2.0), 2.0 * 1e-3]
+        @test g_in ≈ [2.0 * exp(1.0), 2.0 * exp(2.0), 2.0 * 1.0e-3]
 
         # 4. Metadata
         @test transform_names(lat, [:param]) == [Symbol("log(abs(param))")]
@@ -76,7 +76,7 @@ using SafeTestsets
         # 3D parameter space, pinning parameter index 2 to a constant 99.0
         # Free space is 2D -> Maps to 3D Physical Space
         fpt = FixedParamsTransform([1, 3], [99.0], 3)
-        
+
         x_free = [1.5, 4.5]
         y_full = [1.5, 99.0, 4.5]
 
@@ -100,20 +100,20 @@ using SafeTestsets
     # ====================================================================
     # --- 3. Compound Transform Chain Pipeline Verification ---
     # ====================================================================
-        @testset "Compound Chain Operations" begin
+    @testset "Compound Chain Operations" begin
         # Setup an end-to-end composite pipeline:
         # Optimizer space (2D) -> Fix/Mask (3D) -> Scale (3D) -> LogAbs (3D exp) -> Physical Space
-    
+
         free_indices = [1, 3]
         fixed_values = [5.0]
         fpt = FixedParamsTransform(free_indices, fixed_values, 3)
-        st  = ScaleTransform([2.0, 1.0, 0.5])
+        st = ScaleTransform([2.0, 1.0, 0.5])
         lat = LogAbsTransform()
 
         chain = TransformChain(fpt, st, lat)
 
         x_opt = [2.0, 8.0] # Free parameter starts (in log/optimizer space)
-    
+
         # Manually trace intermediate passes to find analytical target:
         # 1. fpt   -> [2.0, 5.0, 8.0]
         # 2. st    -> [4.0, 5.0, 4.0]               (Multiplies log-space coordinates)
@@ -128,7 +128,7 @@ using SafeTestsets
 
         # --- Pipeline Pullback Sensitivity Checks ---
         g_initial = [1.0, 1.0, 1.0] # dLoss / dy_final (Gradient sitting at Physical Space)
-    
+
         # Calculate manually backwards (Pullback flows: lat -> st -> fpt):
         # 1. lat pullback: g * y_final => [1.0 * exp(4.0), 1.0 * exp(5.0), 1.0 * exp(4.0)]
         # 2. st pullback:  g * weights => [exp(4.0) * 2.0, exp(5.0) * 1.0, exp(4.0) * 0.5]
@@ -137,19 +137,18 @@ using SafeTestsets
 
         g_transformed = pullback!(chain, g_initial, y_final)
         @test g_transformed ≈ expected_g_transformed
-    
+
         # Test structural pipeline names tracing
         opt_names = [:p1, :p2]
         final_names = transform_names(chain, opt_names)
         @test final_names == [Symbol("log(abs(2.0 * p1))"), Symbol("log(abs(p2))")]
-    
+
         # Test full tracking when full physical dimension size names are passed
         physical_names = [:physical_1, :pinned_field, :physical_3]
-    
+
         @test transform_names(chain, physical_names) == [
             Symbol("log(abs(2.0 * physical_1))"),
-            Symbol("log(abs(physical_3))")
+            Symbol("log(abs(physical_3))"),
         ]
     end
 end
-

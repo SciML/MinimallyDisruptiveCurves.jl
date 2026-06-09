@@ -7,7 +7,7 @@ abstract type AbstractTransform end
     
 Accepts a tuple of transforms. Chains them together to make a composite transform.
 """
-struct TransformChain{T<:Tuple} <: AbstractTransform
+struct TransformChain{T <: Tuple} <: AbstractTransform
     ts::T
 end
 TransformChain(ts::AbstractTransform...) = TransformChain(ts)
@@ -34,14 +34,14 @@ end
     # Split into the last element and all preceding elements
     init = Base.front(ts)
     last_t = Base.last(ts)
-    
+
     # Compute the input parameter 'x' for the last layer
     x = inverse(last_t, y)
-    
+
     # Compute the gradient coming into this layer
     g_in = similar(x)
     pullback!(last_t, g_in, g_out, x, y)
-    
+
     # Recurse backwards through the remainder of the chain
     return _pullback_recursive(init, g_in, x)
 end
@@ -71,7 +71,7 @@ end
 """
    Scales parameters by constants. Correspondingly scales the effort MD curves take to move that parameter (which is the point of this)
 """
-struct ScaleTransform{V<:AbstractVector{Float64}} <: AbstractTransform
+struct ScaleTransform{V <: AbstractVector{Float64}} <: AbstractTransform
     w::V
 end
 forward(t::ScaleTransform, x) = x .* t.w
@@ -95,7 +95,7 @@ forward(::LogAbsTransform, x) = exp.(x)
 # Inverse: Physical Space -> Optimizer Space
 inverse(::LogAbsTransform, y) = log.(abs.(y))
 
-# Pullback: z = exp(x), so dz/dx = exp(x) = z. 
+# Pullback: z = exp(x), so dz/dx = exp(x) = z.
 # g_in = g_out * z
 function pullback!(::LogAbsTransform, g_in, g_out, x, y)
     @. g_in = g_out * y  # 'y' is the output of forward (the physical values)
@@ -169,5 +169,3 @@ function transform_names(chain::TransformChain, names::Vector{Symbol})
     end
     return current_names
 end
-
-

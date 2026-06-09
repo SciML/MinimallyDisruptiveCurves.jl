@@ -11,11 +11,11 @@ using JET.jl, matching the updated package API architecture.
 
 # Create non-allocating test cost functions matching precompilation workflow
 function jet_test_cost(p)
-    (1.0 - p[1])^2 + 10.0 * (p[2] - p[1]^2)^2
+    return (1.0 - p[1])^2 + 10.0 * (p[2] - p[1]^2)^2
 end
 
 function jet_test_cost_grad!(g, p)
-    ε = 1e-8
+    ε = 1.0e-8
     p2 = copy(p)
 
     for i in eachindex(p)
@@ -25,7 +25,7 @@ function jet_test_cost_grad!(g, p)
         p2[i] = orig
     end
 
-    nothing
+    return nothing
 end
 
 @testset "JET Static Analysis" begin
@@ -56,7 +56,7 @@ end
     )
 
     ws = MDCWorkspace(sys)
-    
+
     # Pre-allocate containers for vector field execution
     vf! = MinimallyDisruptiveCurves.vectorfield(sys)
     λ0 = MinimallyDisruptiveCurves.initialise_lambda(sys, ws)

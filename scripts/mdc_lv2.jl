@@ -39,7 +39,8 @@ Parameters:
   - `γ`: Predator efficiency growth - `δ`: Predator natural death rate
 """
 @component function LotkaVolterra(;
-        name, α = 1.3, β = 0.9, γ = 0.8, δ = 1.8)
+        name, α = 1.3, β = 0.9, γ = 0.8, δ = 1.8
+    )
     @parameters begin
         α = α
         β = β
@@ -70,8 +71,10 @@ Parameters:
     push!(eqs, D_nounits(x) ~ α * x - β * x * y)
     push!(eqs, D_nounits(y) ~ -δ * y + γ * x * y)
 
-    return System(eqs, t_nounits, vars, params;
-        systems = System[], initial_conditions, guesses, name)
+    return System(
+        eqs, t_nounits, vars, params;
+        systems = System[], initial_conditions, guesses, name
+    )
 end
 
 @named lv = LotkaVolterra()
@@ -91,7 +94,7 @@ nom_sol = mapping.simulator(p_nominal)
 const grid_steps = range(TSPAN_PHYSICAL[1], TSPAN_PHYSICAL[2], length = 200)
 const nom_features = [
     mean(nom_sol(t)[1] for t in grid_steps),
-    maximum(nom_sol(t)[2] for t in grid_steps)
+    maximum(nom_sol(t)[2] for t in grid_steps),
 ]
 
 """
@@ -109,24 +112,24 @@ function mtk_user_cost(sol)
 
     # 2. Sample states along the time grid array
     vals = [sol(t) for t in grid_steps]
-    
+
     # 3. Short-circuit check for numerical NaN/Inf explosions inline
     if any(any(isnan.(v)) || any(isinf.(v)) for v in vals)
         return 10000.0
     end
 
     # 4. If simulation passed validation tests, evaluate feature error metrics
-    mean_prey    = mean(v[1] for v in vals)
+    mean_prey = mean(v[1] for v in vals)
     max_predator = maximum(v[2] for v in vals)
-    
+
     return sum(abs2, [mean_prey, max_predator] .- nom_features)
 end
 
 # Compile the user metric objective function into an AD-ready configuration layout
 cf_result = mtk_cost_mapping(
-    sys, 
-    mtk_user_cost, 
-    AutoForwardDiff(); 
+    sys,
+    mtk_user_cost,
+    AutoForwardDiff();
     tspan = TSPAN_PHYSICAL,
 )
 core_cost = cf_result.cost_function
@@ -145,15 +148,15 @@ init_dir = eigen_decomposition.vectors[:, EXPLORATION_DIR]
 
 # Build MDC system
 mdc_sys = MDCSystem(
-    core_cost, 
-    p_nominal, 
-    init_dir, 
+    core_cost,
+    p_nominal,
+    init_dir,
     1.0;                 #  Hamiltonian / momentum (H)
     names = cf_result.names # Preserves mapping symbols: [:α, :β, :γ, :δ]
 )
 
 # Attach conservation stabilization callback routine to mitigate integration drift
-stabiliser  = mdc_momentum_readjustment(mdc_sys; tol = 1e-3)
+stabiliser = mdc_momentum_readjustment(mdc_sys; tol = 1.0e-3)
 my_pipeline = CallbackSet(stabiliser)
 
 println("Launching MDC...")
@@ -173,55 +176,55 @@ evaluated on a strict grid to preserve structural time-axis scaling during rende
 function lotka_volterra_sandbox_painter(θ_physical)
     # 1. Enforce a locked uniform axis domain grid to prevent visual stretching
     plot_t_grid = range(TSPAN_PHYSICAL[1], TSPAN_PHYSICAL[2], length = 200)
-    
+
     # 2. Evaluate simulated trajectories
-    sol_nominal   = mapping.simulator(p_nominal)
+    sol_nominal = mapping.simulator(p_nominal)
     sol_perturbed = mapping.simulator(θ_physical)
-    
+
     # 3. Slice state vectors systematically over the static domain grid
-    states_nom  = [sol_nominal(t) for t in plot_t_grid]
+    states_nom = [sol_nominal(t) for t in plot_t_grid]
     states_pert = [sol_perturbed(t) for t in plot_t_grid]
-    
+
     prey_nominal = [u[1] for u in states_nom]
     pred_nominal = [u[2] for u in states_nom]
-    
+
     prey_perturbed = [u[1] for u in states_pert]
     pred_perturbed = [u[2] for u in states_pert]
 
     # Compute descriptive system properties
-    mean_prey_nom  = mean(prey_nominal)
+    mean_prey_nom = mean(prey_nominal)
     mean_prey_pert = mean(prey_perturbed)
-    max_pred_nom   = maximum(pred_nominal)
-    max_pred_pert  = maximum(pred_perturbed)
+    max_pred_nom = maximum(pred_nominal)
+    max_pred_pert = maximum(pred_perturbed)
 
     # 4. Generate visual composition layers inside Subplot 1
     # Plot baseline reference context (Static faint indicators)
     Plots.plot!(
-        plot_t_grid, [prey_nominal pred_nominal], 
-        subplot = 1, 
-        linealpha = 0.20, linestyle = :dash, 
+        plot_t_grid, [prey_nominal pred_nominal],
+        subplot = 1,
+        linealpha = 0.2, linestyle = :dash,
         color = [:blue :red], label = false
     )
-    
+
     # Overlay the current explored parameters system response
     Plots.plot!(
-        plot_t_grid, [prey_perturbed pred_perturbed], 
-        subplot = 1, 
-        linewidth = 2, 
+        plot_t_grid, [prey_perturbed pred_perturbed],
+        subplot = 1,
+        linewidth = 2,
         color = [:blue :red], label = ["Prey (x)" "Predator (y)"],
         legend = :topright
     )
-    
+
     # Draw nominal target feature constraints
     Plots.hline!([mean_prey_nom], subplot = 1, linestyle = :dot, linealpha = 0.4, color = :blue, label = false)
     Plots.hline!([max_pred_nom], subplot = 1, linestyle = :dot, linealpha = 0.4, color = :red, label = false)
-    
+
     # Draw dynamic tracked feature shifts
     Plots.hline!([mean_prey_pert], subplot = 1, linestyle = :dashdot, linewidth = 1.2, color = :darkblue, label = "Mean Prey")
     Plots.hline!([max_pred_pert], subplot = 1, linestyle = :dashdot, linewidth = 1.2, color = :darkred, label = "Max Predator")
-    
+
     # Format Subplot Canvas Properties
-    Plots.plot!(
+    return Plots.plot!(
         subplot = 1,
         xlabel = "Time", ylabel = "Population",
         xlims = TSPAN_PHYSICAL,
@@ -239,8 +242,8 @@ lv_animation = MinimallyDisruptiveCurves.animate_mdc(
     mdc_curves,
     lotka_volterra_sandbox_painter;
     fps = 20,
-    density = 150,  
-    raw = true      
+    density = 150,
+    raw = true
 )
 
 # Compile visual frame array and export as a compiled GIF artifact

@@ -29,7 +29,7 @@ const D = ModelingToolkit.D_nounits
         IkBaNfKb(t) = 0.06
         IkBaNfKbn(t) = 0.0
         Cgent(t) = 0.0
-        
+
         NFkBn_obs(t)
         IkBa_cyto_obs(t)
         A20t_obs(t)
@@ -37,7 +37,7 @@ const D = ModelingToolkit.D_nounits
         IKKa_obs(t)
         IkBat_obs(t)
     end
-    
+
     # Push into concrete type-stable Vector{SymbolicT}
     vars = SymbolicT[]
     push!(vars, IKKN); push!(vars, IKKa); push!(vars, IKKi); push!(vars, IKKaIkBa)
@@ -53,11 +53,11 @@ const D = ModelingToolkit.D_nounits
         i1 = 0.0025; kv = 5.0; c1 = 5.0e-7; c3 = 0.0004; c4 = 0.5
         c5 = 0.0003; c4a = 0.5; c5a = 0.0001; i1a = 0.001; e1a = 0.0005
         c1a = 5.0e-7; c3a = 0.0004; e2a = 0.01
-        
+
         c2 = 0.0, [tunable = false]
         c2a = 0.0, [tunable = false]
         c1c = 5.0e-7, [tunable = false]
-        c2c = 0.0,    [tunable = false]
+        c2c = 0.0, [tunable = false]
         c3c = 0.0004, [tunable = false]
     end
 
@@ -73,7 +73,7 @@ const D = ModelingToolkit.D_nounits
     push!(params, c1c); push!(params, c2c); push!(params, c3c)
 
     remf_input = RealInput(; name = :remf_input)
-    
+
     # 2. Main differential and observed equations as Vector{Equation}
     eqs = Equation[]
     push!(eqs, D(IKKN) ~ kprod - kdeg * IKKN - k1 * IKKN * remf_input.u)
@@ -91,7 +91,7 @@ const D = ModelingToolkit.D_nounits
     push!(eqs, D(IkBaNfKb) ~ a1 * IkBa * NFkB - c6a * IkBaNfKb - a3 * IKKa * IkBaNfKb + e2a * IkBaNfKbn)
     push!(eqs, D(IkBaNfKbn) ~ a1 * IkBan * NFkBn - e2a * kv * IkBaNfKbn)
     push!(eqs, D(Cgent) ~ c2c + c1c * NFkBn - c3c * Cgent)
-    
+
     # Append the observed mappings into the main equations vector
     push!(eqs, NFkBn_obs ~ NFkBn)
     push!(eqs, IkBa_cyto_obs ~ IkBa + IkBaNfKb)
@@ -99,7 +99,7 @@ const D = ModelingToolkit.D_nounits
     push!(eqs, IKKtot_obs ~ IKKN + IKKa + IKKi)
     push!(eqs, IKKa_obs ~ IKKa)
     push!(eqs, IkBat_obs ~ IkBat)
-    
+
     # Concrete collections for sub-systems
     sub_systems = System[]
     push!(sub_systems, remf_input)
@@ -109,9 +109,9 @@ const D = ModelingToolkit.D_nounits
 
     # ODESystem acts as the underlying wrapper for continuous models
     return ODESystem(
-        eqs, t, vars, params; 
-        name = name, 
-        systems = sub_systems, 
+        eqs, t, vars, params;
+        name = name,
+        systems = sub_systems,
         initial_conditions = initial_conditions,
         guesses = guesses
     )
@@ -119,21 +119,21 @@ end
 
 @component function NetworkSystem(; name)
     pathway = NFKBWithPort(; name = :pathway)
-    
+
     # Pure algebraic numeric constants (not parameters)
-    t_switch  = 3600.0  
-    steepness = 0.1     
-    height    = 1.0     
-    
+    t_switch = 3600.0
+    steepness = 0.1
+    height = 1.0
+
     eqs = Equation[]
     push!(eqs, pathway.remf_input.u ~ height / (1.0 + exp(-steepness * (t - t_switch))))
-    
+
     sub_systems = System[]
     push!(sub_systems, pathway)
 
     return ODESystem(
-        eqs, t, SymbolicT[], SymbolicT[]; 
-        name = name, 
+        eqs, t, SymbolicT[], SymbolicT[];
+        name = name,
         systems = sub_systems,
         initial_conditions = Dict{SymbolicT, SymbolicT}(),
         guesses = Dict{SymbolicT, SymbolicT}()

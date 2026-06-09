@@ -24,20 +24,20 @@ function MinimallyDisruptiveCurves.animate_mdc(
     end
 
     mdc_sys = hasproperty(curve, :sys) ? curve.sys : sample_sol.prob.p
-    
+
     # Unpack
     chain = hasproperty(mdc_sys, :chain) ? mdc_sys.chain : mdc_sys.cost.chain
-    θ₀    = mdc_sys.θ₀
-    
-    # 2. Reconstruct Continuous Time Domain Axis 
+    θ₀ = mdc_sys.θ₀
+
+    # 2. Reconstruct Continuous Time Domain Axis
     min_t_bound = !isnothing(curve.negative_sol) ? minimum(curve.negative_sol.t) : 0.0
     max_t_bound = !isnothing(curve.positive_sol) ? maximum(curve.positive_sol.t) : 0.0
-    
-    full_grid = collect(range(min_t_bound, stop=max_t_bound, length=density))
+
+    full_grid = collect(range(min_t_bound, stop = max_t_bound, length = density))
     sampled_states = [curve(t) for t in full_grid]
-    
+
     N_params = (length(sampled_states[1])) ÷ 2
-    out_dim = raw ? length(mdc_sys.names) : N_params    
+    out_dim = raw ? length(mdc_sys.names) : N_params
 
     Y_global = Matrix{Float64}(undef, length(full_grid), out_dim)
     for (t_idx, state) in enumerate(sampled_states)
@@ -51,7 +51,7 @@ function MinimallyDisruptiveCurves.animate_mdc(
     active_indices = collect(1:out_dim)
     if !isnothing(max_lines) && max_lines < out_dim
         movements = [maximum(Y_global[:, i]) - minimum(Y_global[:, i]) for i in 1:out_dim]
-        active_indices = sortperm(movements, rev=true)[1:max_lines]
+        active_indices = sortperm(movements, rev = true)[1:max_lines]
         Y_global = Y_global[:, active_indices]
         θ₀_processed = θ₀_processed[active_indices]
     end
@@ -59,7 +59,7 @@ function MinimallyDisruptiveCurves.animate_mdc(
     # Resolve active label naming mappings
     all_labels = String[]
     if hasproperty(mdc_sys, :names)
-        base_names = mdc_sys.names 
+        base_names = mdc_sys.names
         processed_names = raw ? base_names : transform_names(chain, base_names)
         all_labels = [string(n) for n in processed_names][active_indices]
     else
@@ -82,17 +82,17 @@ function MinimallyDisruptiveCurves.animate_mdc(
 
     # 3. Main Animation Frame Sweep
     anim = Plots.@animate for (frame_idx, t_current) in enumerate(full_grid)
-        
+
         Plots.plot(
-            layout = custom_layout, 
+            layout = custom_layout,
             size = (1100, 750),
-            left_margin = 6mm, right_margin = 6mm, 
+            left_margin = 6mm, right_margin = 6mm,
             top_margin = 6mm, bottom_margin = 6mm
         )
 
         state_current = curve(t_current)
         θ_transformed = state_current[1:N_params]
-        θ_physical = MinimallyDisruptiveCurves.forward(chain, θ_transformed) 
+        θ_physical = MinimallyDisruptiveCurves.forward(chain, θ_transformed)
 
         y_cursor = raw ? θ_physical[active_indices] : θ_transformed[active_indices]
 
@@ -106,20 +106,20 @@ function MinimallyDisruptiveCurves.animate_mdc(
 
         Plots.bar!(
             all_labels, deltas,
-            subplot = 2,                                
+            subplot = 2,
             orientation = :vertical,
             fillalpha = 0.7,
             linewidth = 1.2, linecolor = :match,
-            color = color_array,     
-            bar_width = 0.8,            
+            color = color_array,
+            bar_width = 0.8,
             label = false
         )
-        
+
         max_delta = maximum(abs.(Y_global .- reshape(θ₀_processed, 1, length(θ₀_processed))))
-        max_delta = max(1e-6, max_delta) 
-        
+        max_delta = max(1.0e-6, max_delta)
+
         Plots.plot!(
-            subplot = 2,                                
+            subplot = 2,
             title = "Instantaneous Parameter Shift (Δ)",
             ylabel = "Deviation from Nominal",
             ylims = (-max_delta * 1.2, max_delta * 1.2)
@@ -132,14 +132,14 @@ function MinimallyDisruptiveCurves.animate_mdc(
                 full_grid, Y_global[:, i],
                 subplot = 3,
                 linewidth = 1.0, linealpha = 0.15, label = false,
-                color = color_array[i]     
+                color = color_array[i]
             )
         end
 
         # Isolate historical data trail segments
         Y_past = copy(Y_global)
         Y_past[(frame_idx + 1):end, :] .= NaN
-        
+
         for i in 1:size(Y_past, 2)
             Plots.plot!(
                 full_grid, Y_past[:, i],
@@ -147,7 +147,7 @@ function MinimallyDisruptiveCurves.animate_mdc(
                 linewidth = 3.0, linealpha = 0.9,
                 label = all_labels[i],
                 legend = :topleft,
-                color = color_array[i]     
+                color = color_array[i]
             )
         end
 
@@ -159,7 +159,7 @@ function MinimallyDisruptiveCurves.animate_mdc(
 
         Plots.plot!(
             subplot = 3,
-            title = "Continuous Parameter Sweep (t = $(round(t_current, digits=2)))",
+            title = "Continuous Parameter Sweep (t = $(round(t_current, digits = 2)))",
             xlabel = "Arc Length Coordinate (t)",
             ylabel = (raw ? "Physical Space Units" : "Transformed Optimization Units"),
             xlims = (min_t_bound, max_t_bound),

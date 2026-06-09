@@ -17,8 +17,8 @@ using SafeTestsets
     end
 
     # Define the required core API interfaces for MinimallyDisruptiveCurves
-    MinimallyDisruptiveCurves.value(cost::QuadraticMockCost, z) = 0.5 * sum((z .- cost.center).^2)
-    
+    MinimallyDisruptiveCurves.value(cost::QuadraticMockCost, z) = 0.5 * sum((z .- cost.center) .^ 2)
+
     function MinimallyDisruptiveCurves.gradient!(cost::QuadraticMockCost, grad_buffer, z)
         @. grad_buffer = z - cost.center
         return grad_buffer
@@ -30,10 +30,10 @@ using SafeTestsets
     @testset "Identity Mapping Baseline" begin
         center = [1.0, 2.0, 3.0]
         raw_cost = QuadraticMockCost(center)
-        
+
         # Wrap with an empty/identity chain
         tc_identity = TransformedCost(raw_cost, TransformChain())
-        
+
         θ = [4.0, 5.0, 6.0]
         g_buffer = similar(θ)
 
@@ -69,13 +69,13 @@ using SafeTestsets
         val_analytical = tc_composite(θ_opt, g_analytical)
 
         # 2. Compute numerical gradient via central finite differences (ϵ)
-        ϵ = 1e-6
+        ϵ = 1.0e-6
         g_numerical = zeros(length(θ_opt))
 
         for i in 1:length(θ_opt)
             θ_plus = copy(θ_opt)
             θ_minus = copy(θ_opt)
-            
+
             θ_plus[i] += ϵ
             θ_minus[i] -= ϵ
 
@@ -87,6 +87,6 @@ using SafeTestsets
 
         # Test both methods yield identical sensitivities to high numerical precision
         @test val_analytical ≈ tc_composite(θ_opt)
-        @test g_analytical ≈ g_numerical rtol=1e-5
+        @test g_analytical ≈ g_numerical rtol = 1.0e-5
     end
 end

@@ -14,15 +14,15 @@ using PrecompileTools: @setup_workload, @compile_workload
 
     # Allocation-free finite-difference gradient loop
     function _simple_cost_grad!(g, p)
-        ε = 1e-8
+        ε = 1.0e-8
         # Cache a single mutable working vector instead of recreating it in the loop
-        p_perturbed = copy(p) 
+        p_perturbed = copy(p)
         for i in eachindex(p)
             orig = p_perturbed[i]
             p_perturbed[i] = orig + ε
             cost_plus = _simple_cost(p_perturbed)
             p_perturbed[i] = orig # Reset element
-            
+
             g[i] = (cost_plus - _simple_cost(p)) / ε
         end
         return nothing
@@ -30,7 +30,7 @@ using PrecompileTools: @setup_workload, @compile_workload
 
     # Define physical baseline configurations
     θ_physical_nominal = [1.1, 1.1]
-    dθ_physical_nominal = [1.2, 1.2] 
+    dθ_physical_nominal = [1.2, 1.2]
     H_val = 10.0         # Ensure H > initial cost
     mock_physical_names = [:param_A, :param_B]
 
@@ -39,11 +39,11 @@ using PrecompileTools: @setup_workload, @compile_workload
         # 2. Precompile Cost and Transform Chains
         # ----------------------------------------------------------------
         core_cost = CostFunction(_simple_cost, _simple_cost_grad!)
-        
+
         # Build a complete mock transform chain (Scale -> LogAbs)
         w_vec = [1.0, 1.0]
         chain = TransformChain(ScaleTransform(w_vec), LogAbsTransform())
-        
+
         # Wrap into your TransformedCost structure
         t_cost = TransformedCost(core_cost, chain)
 
@@ -58,16 +58,16 @@ using PrecompileTools: @setup_workload, @compile_workload
         _val = t_cost(θ₀)
         g_buffer = similar(θ₀)
         gz_buffer = Vector{eltype(θ₀)}(undef, N_physical)
-        
+
         # Caches the new zero-allocation functor pathway
-        _val_grad = t_cost(θ₀, g_buffer, gz_buffer) 
+        _val_grad = t_cost(θ₀, g_buffer, gz_buffer)
 
         # ----------------------------------------------------------------
         # 3. Precompile System & Workspace Initialization
         # ----------------------------------------------------------------
-        sys = MDCSystem(t_cost, θ₀, dθ₀, H_val; names=mock_physical_names)
+        sys = MDCSystem(t_cost, θ₀, dθ₀, H_val; names = mock_physical_names)
         ws = MDCWorkspace(sys)
-        
+
         # Trigger internal factory and lambda allocations
         _λ₀ = MinimallyDisruptiveCurves.initialise_lambda(sys, ws)
         _vf! = MinimallyDisruptiveCurves.vectorfield(sys)
@@ -77,21 +77,21 @@ using PrecompileTools: @setup_workload, @compile_workload
         # ----------------------------------------------------------------
         # Use a minuscule span limit to keep precompilation execution near-instant
         tiny_span = MDCSpan(-0.01, 0.01)
-        
+
         # Setup the default safety callback
         cb_safety = mdc_safety_callback(sys)
 
         # Solve the ODE (compiles Tsit5, OrdinaryDiffEq routines, and your vector field)
-        curve = MDCSolve(sys; span=tiny_span, callback=cb_safety)
+        curve = MDCSolve(sys; span = tiny_span, callback = cb_safety)
 
         # ----------------------------------------------------------------
         # 5. Precompile Interpolation and Base Extensions
         # ----------------------------------------------------------------
         if !isnothing(curve.positive_sol) || !isnothing(curve.negative_sol)
             # Trace interpolation paths
-            _ = curve(0.0, type=:all)
-            _ = curve(0.0, type=:parameters)
-            _ = curve(0.0, type=:costates)
+            _ = curve(0.0, type = :all)
+            _ = curve(0.0, type = :parameters)
+            _ = curve(0.0, type = :costates)
 
             # Precompile the custom string printing layouts
             show_buffer = IOBuffer()

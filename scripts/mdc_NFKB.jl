@@ -23,7 +23,7 @@ target_observables = [
     sys.pathway.A20t_obs,
     sys.pathway.IKKtot_obs,
     sys.pathway.IKKa_obs,
-    sys.pathway.IkBat_obs
+    sys.pathway.IkBat_obs,
 ]
 
 # ==========================================
@@ -46,30 +46,30 @@ truth_data = Array(sol_nominal(timesteps, idxs = target_observables))
 function loss_function(x, p_tuple)
     # Destructure context tuple
     odeprob, ts, truth, setter, diffcache, obs_symbols = p_tuple
-    
+
     ps = parameter_values(odeprob)
     buffer = get_tmp(diffcache, x)
-    
+
     # Block-copy baseline values (the non-tunables stay untouched elsewhere in `ps`)
     copyto!(buffer, canonicalize(Tunable(), ps)[1])
-    
+
     # Type-safe structural parameter container replacement for ForwardDiff
     ps_updated = replace(Tunable(), ps, buffer)
-    
+
     # Mutate only our active dual/float optimization array
     setter(ps_updated, x)
-    
+
     # Fast inferred problem recreation
     newprob = remake(odeprob; p = ps_updated)
     sol = solve(newprob, Tsit5(); saveat = ts)
-    
+
     if sol.retcode != SciMLBase.ReturnCode.Success
         return eltype(x)(Inf) # Strict type stability for dual-number propagation
     end
-    
+
     # Extract states cleanly via targeted tracking symbols
     current_data = sol(ts, idxs = obs_symbols)
-    
+
     # Allocation-free MSE over the exact matrix of specified states
     return sum(abs2, truth .- current_data) / length(truth)
 end
@@ -104,7 +104,7 @@ cfg = ForwardDiff.GradientConfig(f_wrapped, x_nominal, ForwardDiff.Chunk(x_nomin
 
 # An in-place wrapper function that mutates 'g' without modifying package code
 grad_wrapped! = function (g, θ)
-    ForwardDiff.gradient!(g, f_wrapped, θ, cfg)
+    return ForwardDiff.gradient!(g, f_wrapped, θ, cfg)
 end
 
 base_cost = CostFunction(f_wrapped, grad_wrapped!)
@@ -112,7 +112,7 @@ pipeline = TransformChain(LogAbsTransform())
 final_cost = TransformedCost(base_cost, pipeline)
 x_nominal_transformed = MinimallyDisruptiveCurves.inverse(pipeline, x_nominal)
 hess0 = ForwardDiff.hessian(θ -> final_cost(θ), x_nominal_transformed)
-vs, vals = sparse_eigenbasis(hess0, 5; λ=0.01)
+vs, vals = sparse_eigenbasis(hess0, 5; λ = 0.01)
 
 # 1. Initialize an empty dictionary to store the results
 mdc_curves = Dict{Int, Any}()
@@ -120,22 +120,22 @@ mdc_curves = Dict{Int, Any}()
 # 2. Loop through the desired indices
 for i in 1:5
     println("--- Running MDC for index i = $i ---")
-    
+
     # Create the system dynamically using the i-th direction
     _mdc_sys = MDCSystem(
-        final_cost, 
-        x_nominal_transformed, 
+        final_cost,
+        x_nominal_transformed,
         vs[i],                # Replaced e_dirs(i) directly with vs[i]
         1.0;                  # Hamiltonian / momentum (H)
         names = params_to_optimize .|> Symbol
     )
 
     # Set up the pipeline for this iteration
-    stabiliser  = mdc_momentum_readjustment(_mdc_sys; tol = 1e-3)
+    stabiliser = mdc_momentum_readjustment(_mdc_sys; tol = 1.0e-3)
     my_pipeline = CallbackSet(stabiliser)
 
     # Solve and store the result in your dictionary
     @time curves_i = MDCSolve(_mdc_sys, span = MDCSpan(-10.0, 10.0); callback = my_pipeline)
-    
+
     mdc_curves[i] = curves_i
 end

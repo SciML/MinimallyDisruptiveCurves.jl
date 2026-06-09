@@ -26,11 +26,6 @@ export MDCSystem, MDCWorkspace, vectorfield, ODEProblem, MDCSpan, cost_profile
 export mdc_safety_callback, mdc_bounds_callback, mdc_verbose_callbacks
 export mdc_dHdu_residual, mdc_momentum_readjustment
 
-function mtk_parameter_mapping end
-export mtk_parameter_mapping
-
-function mtk_cost_mapping end
-export mtk_cost_mapping
 
 function animate_mdc end
 export animate_mdc

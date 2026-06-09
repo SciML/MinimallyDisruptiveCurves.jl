@@ -357,6 +357,17 @@ end
 # --- High Level Solve Interface ---
 # ====================================================================
 
+"""
+    MDCsolve(sys::MDCSystem; kwargs...) -> MDCCurve
+
+Solve the Minimally Disruptive Curve (MDC) differential equations for a given system.
+
+This function integrates the MDC vector field both forwards and backwards in time from the 
+initial state, returning an `MDCCurve` containing the joint trajectory pieces. It internally 
+constructs a unified initial condition state vector combining parameters \$\\theta_0\$ and 
+their respective tracking sensitivities \$\\lambda_0\$.
+    
+"""
 function MDCsolve(sys::MDCSystem; 
                   span=MDCSpan(-10.0, 10.0), 
                   mode=:adaptive,          

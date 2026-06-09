@@ -24,6 +24,12 @@ MDCPlotsExt = "Plots"
 [compat]
 DifferentiationInterface = "0.7.18"
 SymbolicIndexingInterface = "0.3.48"
+julia = "1.12"
+
+
+[workspace]
+projects = ["docs"]
+
 
 [extras]
 AllocCheck = "9b6a8646-10ed-4001-bbdc-1d2f46dfbb1a"

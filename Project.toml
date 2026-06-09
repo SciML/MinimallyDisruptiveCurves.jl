@@ -22,7 +22,7 @@ Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 MDCPlotsExt = "Plots"
 
 [compat]
-DifferentiationInterface = "0.7"
+DifferentiationInterface = "0.7.12"
 SymbolicIndexingInterface = "0.3"
 DiffEqCallbacks = "4.17"
 LinearAlgebra = "1.10"

@@ -1,4 +1,5 @@
 using Test
+using SafeTestsets
 
 const GROUP = get(ENV, "GROUP", "All")
 
@@ -9,8 +10,6 @@ if GROUP == "QA"
     Pkg.instantiate()
     include(joinpath(@__DIR__, "qa", "qa.jl"))
 else
-    using SafeTestsets
-
     @testset "MinimallyDisruptiveCurves.jl Suite" begin
 
         # --- 1. CORE FUNCTIONAL TESTS ---

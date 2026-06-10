@@ -1,11 +1,11 @@
-# using JET
+using JET
 using MinimallyDisruptiveCurves
 using Test
 
 """
 JET static analysis tests for MinimallyDisruptiveCurves.jl
 
-These tests verify type stability and check for runtime errors of core functions 
+These tests verify type stability and check for runtime errors of core functions
 using JET.jl, matching the updated package API architecture.
 """
 

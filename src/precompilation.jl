@@ -65,7 +65,7 @@ using PrecompileTools: @setup_workload, @compile_workload
         # ----------------------------------------------------------------
         # 3. Precompile System & Workspace Initialization
         # ----------------------------------------------------------------
-        sys = MDCSystem(t_cost, θ₀, dθ₀, H_val; names = mock_physical_names)
+        sys = MDCProblem(t_cost, θ₀, dθ₀, H_val; names = mock_physical_names)
         ws = MDCWorkspace(sys)
 
         # Trigger internal factory and lambda allocations

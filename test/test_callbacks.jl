@@ -45,7 +45,7 @@ using SafeTestsets
         H = 10.0 # Give it plenty of momentum capacity to run
 
         core_cost = make_callback_cost(θ_nominal)
-        sys = MDCSystem(TransformedCost(core_cost, TransformChain()), θ_nominal, dθ_crash, H; names = [:mass, :damping, :stiffness])
+        sys = MDCProblem(TransformedCost(core_cost, TransformChain()), θ_nominal, dθ_crash, H; names = [:mass, :damping, :stiffness])
 
         safety_cb = mdc_safety_callback(sys)
 

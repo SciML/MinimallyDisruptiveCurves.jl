@@ -11,15 +11,15 @@ using SciMLBase: terminate!
 
 include("transforms.jl")
 include("costInterface.jl")
-include("MDCSystem.jl")
+include("MDCProblem.jl")
 include("plotting_utilities.jl")
 include("utilities.jl")
 
 import Base.show
 
-export AbstractTransform, TransformChain, ScaleTransform, LogAbsTransform, FixedParamsTransform, OnlyFreeParamsTransform
+export AbstractTransform, TransformChain, ScaleTransform, LogAbsTransform, FixedParamsTransform
 export AbstractCost, CostFunction, TransformedCost, inverse, forward, gradient!
-export MDCSolve, MDCSystem, MDCWorkspace, vectorfield, ODEProblem, MDCSpan
+export MDCSolve, MDCProblem, MDCWorkspace, ODEProblem, MDCSpan
 
 export mdc_safety_callback, mdc_bounds_callback, mdc_verbose_callbacks
 export mdc_dHdu_residual, mdc_momentum_readjustment

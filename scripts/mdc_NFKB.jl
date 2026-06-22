@@ -122,7 +122,7 @@ for i in 1:5
     println("--- Running MDC for index i = $i ---")
 
     # Create the system dynamically using the i-th direction
-    _mdc_sys = MDCSystem(
+    _mdc_sys = MDCProblem(
         final_cost,
         x_nominal_transformed,
         vs[i],                # Replaced e_dirs(i) directly with vs[i]

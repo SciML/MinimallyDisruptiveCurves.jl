@@ -4,13 +4,13 @@ using MinimallyDisruptiveCurves
 using Plots
 using Plots.PlotMeasures
 
-import MinimallyDisruptiveCurves: MDCCurve, animate_mdc, transform_names
+import MinimallyDisruptiveCurves: MDCSolution, animate_mdc, transform_names
 
 """
     
 """
 function MinimallyDisruptiveCurves.animate_mdc(
-        curve::MDCCurve,
+        curve::MDCSolution,
         user_sim_func::Function;
         fps = 15,
         density = 100,
@@ -20,7 +20,7 @@ function MinimallyDisruptiveCurves.animate_mdc(
     # Verification
     sample_sol = !isnothing(curve.positive_sol) ? curve.positive_sol : curve.negative_sol
     if isnothing(sample_sol)
-        error("Cannot animate an empty MDCCurve.")
+        error("Cannot animate an empty MDCSolution.")
     end
 
     mdc_sys = hasproperty(curve, :sys) ? curve.sys : sample_sol.prob.p

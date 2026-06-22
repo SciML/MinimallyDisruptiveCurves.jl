@@ -86,7 +86,7 @@ dθ₀ = θ_nominal
 
 H = 1.0              # Parameter exploration kinetic energy threshold
 
-sys = MDCSystem(transformed_cost, θ₀, dθ₀, H; names = [:mass, :damping, :stiffness])
+sys = MDCProblem(transformed_cost, θ₀, dθ₀, H; names = [:mass, :damping, :stiffness])
 
 
 # safety_cb  = mdc_safety_callback(sys)

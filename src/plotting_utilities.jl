@@ -1,5 +1,5 @@
 @recipe function f(
-        curve::MinimallyDisruptiveCurves.MDCCurve;
+        curve::MinimallyDisruptiveCurves.MDCSolution;
         max_lines = nothing,
         mode = :absolute,
         raw = false,
@@ -8,7 +8,7 @@
 
     sample_sol = !isnothing(curve.positive_sol) ? curve.positive_sol : curve.negative_sol
     if isnothing(sample_sol)
-        error("Cannot plot an empty MDCCurve.")
+        error("Cannot plot an empty MDCSolution.")
     end
 
     sys = sample_sol.prob.p

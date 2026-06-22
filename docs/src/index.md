@@ -15,7 +15,7 @@ LogAbsTransform
 FixedParamsTransform
 CostFunction
 TransformedCost
-MDCSystem
+MDCProblem
 vectorfield
 ODEProblem
 MDCSpan

@@ -172,7 +172,7 @@ eigen_trans = eigen(Symmetric(hess0_trans))
 init_dir_trans = eigen_trans.vectors[:, EXPLORATION_DIR]
 
 # Build MDC system
-mdc_sys = MDCSystem(
+mdc_sys = MDCProblem(
     final_cost,
     x_nominal_transformed,
     init_dir_trans,

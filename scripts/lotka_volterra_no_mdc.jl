@@ -63,7 +63,7 @@ eigen_decomposition = eigen(hess0)
 init_dir = eigen_decomposition.vectors[:, which_dir]
 
 # Leverage our automated IdentityTransform fallbacks to keep the top layer clean
-sys = MDCSystem(
+sys = MDCProblem(
     core_cost,
     p_nominal,
     init_dir,

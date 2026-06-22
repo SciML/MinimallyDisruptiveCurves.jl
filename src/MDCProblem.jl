@@ -2,12 +2,17 @@
 # --- Core MDC Structs ---
 # ====================================================================
 
+
+
+abstract type AbstractMDCProblem end
+abstract type AbstractMDCSolution end
+
 """
-    MDCSystem(cost, theta0, dtheta0, momentum, names)
+    MDCProblem(cost, theta0, dtheta0, momentum, names)
 
 Holds and specifies the information needed to evolve an MD curve. names is an optional vector of symbols holding parameter names.
 """
-struct MDCSystem{T, C, V <: AbstractVector{T}}
+struct MDCProblem{T, C, V <: AbstractVector{T}} <: AbstractMDCProblem
     cost::C          # TransformedCost structure
     θ₀::V            # Initial parameter vector
     dθ₀::V            # Initial parameter direction
@@ -15,8 +20,8 @@ struct MDCSystem{T, C, V <: AbstractVector{T}}
     names::Vector{Symbol}
 end
 
-function Base.show(io::IO, ::MIME"text/plain", sys::MDCSystem)
-    print(io, "MDCSystem with ")
+function Base.show(io::IO, ::MIME"text/plain", sys::MDCProblem)
+    print(io, "MDCProblem with ")
     print(io, "Parameters: ", length(sys.θ₀), ", ")
     return print(io, "Momentum cap (H): ", sys.momentum)
 end
@@ -29,22 +34,22 @@ function TransformedCost(core_cost::CostFunction)
     return TransformedCost(core_cost, TransformChain())
 end
 
-function MDCSystem(raw_cost::CostFunction, θ₀, dθ₀, H; kwargs...)
+function MDCProblem(raw_cost::CostFunction, θ₀, dθ₀, H; kwargs...)
     t_cost = TransformedCost(raw_cost)
-    return MDCSystem(t_cost, θ₀, dθ₀, H; kwargs...)
+    return MDCProblem(t_cost, θ₀, dθ₀, H; kwargs...)
 end
 
 
-function MDCSystem(cost, θ₀, dθ₀, momentum; names = [Symbol("θ_$i") for i in 1:length(θ₀)])
-    return MDCSystem(cost, θ₀, dθ₀, momentum, names)
+function MDCProblem(cost, θ₀, dθ₀, momentum; names = [Symbol("θ_$i") for i in 1:length(θ₀)])
+    return MDCProblem(cost, θ₀, dθ₀, momentum, names)
 end
 
-function MDCSystem(transformed_cost::TransformedCost, θ₀, dθ₀, momentum; names = nothing)
+function MDCProblem(transformed_cost::TransformedCost, θ₀, dθ₀, momentum; names = nothing)
     N = length(θ₀)
     names = isnothing(names) ? [Symbol("θ_$i") for i in 1:N] : names
     # operational_names = transform_names(transformed_cost.chain, initial_names)
 
-    return MDCSystem(transformed_cost, θ₀, dθ₀, momentum, names)
+    return MDCProblem(transformed_cost, θ₀, dθ₀, momentum, names)
 end
 
 struct MDCWorkspace{V}
@@ -52,7 +57,7 @@ struct MDCWorkspace{V}
     grad_cache::V
 end
 
-function MDCWorkspace(sys::MDCSystem)
+function MDCWorkspace(sys::MDCProblem)
     return MDCWorkspace(
         similar(sys.dθ₀),
         similar(sys.θ₀)
@@ -69,9 +74,9 @@ struct MDCSpan{T <: AbstractFloat}
 end
 
 """
-Object holding information on evolved curve. (c::MDCurve).spec gives the MDCSystem from which it was generated 
+Object holding information on evolved curve. (c::MDCurve).spec gives the MDCProblem from which it was generated 
 """
-struct MDCCurve{P, N, C <: MDCSystem}
+struct MDCSolution{P, N, C <: AbstractMDCProblem} <: AbstractMDCSolution
     positive_sol::P
     negative_sol::N
     spec::C
@@ -82,7 +87,7 @@ end
     Initialises costates based on momentum and initial param direction. Internal use.
     
 """
-function initialise_lambda(sys::MDCSystem, ws::MDCWorkspace)
+function initialise_lambda(sys::MDCProblem, ws::MDCWorkspace)
     θ₀ = sys.θ₀
     dθ₀ = sys.dθ₀  # Your user-supplied initial parameter direction
     H = sys.momentum
@@ -99,10 +104,10 @@ function initialise_lambda(sys::MDCSystem, ws::MDCWorkspace)
 end
 
 """
-    vectorfield(sys::MDCSystem)
+    vectorfield(sys::MDCProblem)
 Function factory to generate the vector field for the MDC  
 """
-function vectorfield(sys::MDCSystem)
+function vectorfield(sys::MDCProblem)
     cost = sys.cost
     θ₀ = sys.θ₀
     H = sys.momentum
@@ -130,7 +135,6 @@ function vectorfield(sys::MDCSystem)
             C = cost(θ, grad_cache, gz_cache)
 
             # --- MDC Core equations---
-            μ2 = (C - H) / 2.0
             μ2 = (C - H) / 2.0
             μ2_smooth = sign(μ2) * sqrt(μ2^2 + 1.0e-20)
 
@@ -162,12 +166,12 @@ end
 # ====================================================================
 
 """
-    mdc_dHdu_residual(sys::MDCSystem, u, t)
+    mdc_dHdu_residual(sys::MDCProblem, u, t)
 
 Computes the raw L1 numerical drift from dHdu = 0.
 This operates directly on the raw state vector `u`.
 """
-function mdc_dHdu_residual(sys::MDCSystem, u, t)
+function mdc_dHdu_residual(sys::MDCProblem, u, t)
     N = length(sys.θ₀)
     H = sys.momentum
     θ₀ = sys.θ₀
@@ -213,13 +217,13 @@ end
 # ====================================================================
 
 """
-    mdc_momentum_readjustment(sys::MDCSystem; tol=1e-2)
+    mdc_momentum_readjustment(sys::MDCProblem; tol=1e-2)
 
 Creates a DiscreteCallback that watches the dHdu numerical drift. If it 
 exceeds `tol`, the costate (λ) is orthogonally projected back onto the 
 manifold where the Hamiltonian derivative identity holds.
 """
-function mdc_momentum_readjustment(sys::MDCSystem; tol = 1.0e-3)
+function mdc_momentum_readjustment(sys::MDCProblem; tol = 1.0e-3)
     N = length(sys.θ₀)
     H = sys.momentum
     θ₀ = sys.θ₀
@@ -271,12 +275,12 @@ function mdc_momentum_readjustment(sys::MDCSystem; tol = 1.0e-3)
 end
 
 """
-    mdc_safety_callback(sys::MDCSystem; tol=1e-4)
+    mdc_safety_callback(sys::MDCProblem; tol=1e-4)
 
 Returns a DiscreteCallback that terminates integration if the cost `C` 
 approaches or exceeds the total momentum `H`.
 """
-function mdc_safety_callback(sys::MDCSystem; tol = 1.0e-4)
+function mdc_safety_callback(sys::MDCProblem; tol = 1.0e-4)
     N = length(sys.θ₀)
 
     condition = (u, t, integrator) -> begin
@@ -320,13 +324,12 @@ end
 
 
 """
-    mdc_verbose_callbacks(sys::MDCSystem, timepoints; is_negative=false)
+    mdc_verbose_callbacks(sys::MDCProblem, timepoints; is_negative=false)
 
 Returns a Tuple of PresetTimeCallbacks for logging the path arc-length and 
 Hamiltonian energy drift (residual).
 """
-function mdc_verbose_callbacks(sys::MDCSystem, timepoints; is_negative = false)
-    N = length(sys.θ₀)
+function mdc_verbose_callbacks(sys::MDCProblem, timepoints; is_negative = false)
     t_points = is_negative ? -abs.(collect(timepoints)) : abs.(collect(timepoints))
 
     distance_cb = PresetTimeCallback(
@@ -354,18 +357,18 @@ end
 
 
 """
-    MDCSolve(sys::MDCSystem; kwargs...) -> MDCCurve
+    MDCSolve(sys::MDCProblem; kwargs...) -> MDCSolution
 
 Solve the Minimally Disruptive Curve (MDC) differential equations for a given system.
 
 This function integrates the MDC vector field both forwards and backwards in time from the 
-initial state, returning an `MDCCurve` containing the joint trajectory pieces. It internally 
+initial state, returning an `MDCSolution` containing the joint trajectory pieces. It internally 
 constructs a unified initial condition state vector combining parameters \$\\theta_0\$ and 
 their respective tracking sensitivities \$\\lambda_0\$.
     
 """
 function MDCSolve(
-        sys::MDCSystem;
+        sys::MDCProblem;
         span = MDCSpan(-10.0, 10.0),
         mode = :adaptive,
         dt = 0.01,
@@ -424,16 +427,16 @@ function MDCSolve(
         run_neg(), run_pos()
     end
 
-    return MDCCurve(sol_pos, sol_neg, sys)
+    return MDCSolution(sol_pos, sol_neg, sys)
 end
 
 """
-    (curve::MDCCurve)(t::Real)
+    (curve::MDCSolution)(t::Real)
 Enables continuous interpolation across the split-span trajectory. 
 Routes positive arc-lengths to `positive_sol` and negative 
 arc-lengths to `negative_sol`.
 """
-function (curve::MDCCurve)(t::Real; type = :all)
+function (curve::MDCSolution)(t::Real; type = :all)
     # 1. Null-Safe State Extraction
     raw_state = if t >= 0.0
         if !isnothing(curve.positive_sol)
@@ -441,7 +444,7 @@ function (curve::MDCCurve)(t::Real; type = :all)
         elseif !isnothing(curve.negative_sol)
             curve.negative_sol(0.0)
         else
-            error("Cannot evaluate MDCCurve: both positive and negative solutions are empty.")
+            error("Cannot evaluate MDCSolution: both positive and negative solutions are empty.")
         end
     else # t < 0.0
         if !isnothing(curve.negative_sol)
@@ -451,7 +454,7 @@ function (curve::MDCCurve)(t::Real; type = :all)
             # fall back to the initial state at the start of the forward path
             curve.positive_sol(0.0)
         else
-            error("Cannot evaluate MDCCurve: both positive and negative solutions are empty.")
+            error("Cannot evaluate MDCSolution: both positive and negative solutions are empty.")
         end
     end
 
@@ -469,9 +472,9 @@ function (curve::MDCCurve)(t::Real; type = :all)
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain", curve::MDCCurve)
+function Base.show(io::IO, ::MIME"text/plain", curve::MDCSolution)
     if isnothing(curve.spec)
-        print(io, "Empty MDCCurve (uninitialized).")
+        print(io, "Empty MDCSolution (uninitialized).")
         return
     end
 
@@ -481,7 +484,7 @@ function Base.show(io::IO, ::MIME"text/plain", curve::MDCCurve)
     neg_max = !isnothing(curve.negative_sol) ? abs(minimum(curve.negative_sol.t)) : 0.0
     pos_max = !isnothing(curve.positive_sol) ? maximum(curve.positive_sol.t) : 0.0
 
-    println(io, "Minimally Disruptive Curve (MDCCurve)")
+    println(io, "Minimally Disruptive Curve (MDCSolution)")
     println(io, "====================================")
     println(io, "  • Parameter Dimensions : ", N_params)
     println(io, "  • Explored Span        : [", -neg_max, " ↔ ", pos_max, "] (Arc length)")

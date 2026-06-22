@@ -147,7 +147,7 @@ eigen_decomposition = eigen(hess0)
 init_dir = eigen_decomposition.vectors[:, EXPLORATION_DIR]
 
 # Build MDC system
-mdc_sys = MDCSystem(
+mdc_sys = MDCProblem(
     core_cost,
     p_nominal,
     init_dir,

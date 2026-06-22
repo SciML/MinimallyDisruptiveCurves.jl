@@ -100,8 +100,8 @@ function sparse_eigenbasis(hessian, num_vectors::Int; λ = 1.0, trim_level = 1.0
         error("num_vectors ($num_vectors) cannot exceed the dimension of the Hessian ($n).")
     end
 
-    basis = Vector{Vector{Float64}}()
-    values = Float64[]
+    basis = Vector{Vector{eltype(hessian)}}()
+    values = eltype(hessian)[]
 
     # Cache the full eigendecomposition once outside the loop so we can pass
     # good initial guesses (the standard eigenvectors) to each sequential step

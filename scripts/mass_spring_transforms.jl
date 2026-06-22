@@ -82,7 +82,7 @@ dθ₀ = [1.0, 1.0]                # 2-element directional push vector matching 
 H = 1.0 # Exploration energy headroom limit
 
 # Pass baseline physical metadata names into the constructor tracking framework
-sys = MDCSystem(
+sys = MDCProblem(
     transformed_cost,
     θ₀,
     dθ₀,

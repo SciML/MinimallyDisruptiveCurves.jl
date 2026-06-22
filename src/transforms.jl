@@ -71,7 +71,7 @@ end
 """
    Scales parameters by constants. Correspondingly scales the effort MD curves take to move that parameter (which is the point of this)
 """
-struct ScaleTransform{V <: AbstractVector{Float64}} <: AbstractTransform
+struct ScaleTransform{V <: AbstractVector{<:Real}} <: AbstractTransform
     w::V
 end
 forward(t::ScaleTransform, x) = x .* t.w
@@ -151,7 +151,7 @@ function transform_names(t::LogAbsTransform, names::Vector{Symbol})
 end
 
 function transform_names(t::ScaleTransform, names::Vector{Symbol})
-    return [t.w[i] == 1.0 ? names[i] : Symbol("$(t.w[i]) * $(names[i])") for i in 1:length(names)]
+    return [t.w[i] ≈ 1.0 ? names[i] : Symbol("$(t.w[i]) * $(names[i])") for i in 1:length(names)]
 end
 
 function transform_names(t::FixedParamsTransform, names::Vector{Symbol})

@@ -47,7 +47,7 @@ end
     θ₀ = inverse(chain, θ_phys)
     dθ₀ = inverse(chain, dθ_phys)
 
-    sys = MDCSystem(
+    sys = MDCProblem(
         tcost,
         θ₀,
         dθ₀,

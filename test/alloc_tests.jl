@@ -31,11 +31,11 @@ end
     dp0 = [1.0, 0.0, 0.0]
     momentum = 10.0
 
-    sys = MDCSystem(cost, p0, dp0, momentum; names = [:a, :b, :c])
+    sys = MDCProblem(cost, p0, dp0, momentum; names = [:a, :b, :c])
     ws = MDCWorkspace(sys)
 
     λ₀ = MinimallyDisruptiveCurves.initialise_lambda(sys, ws)
-    f! = vectorfield(sys)
+    f! = MinimallyDisruptiveCurves.vectorfield(sys)
 
     u0 = [p0; λ₀]
     du = similar(u0)

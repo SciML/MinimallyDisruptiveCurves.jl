@@ -52,7 +52,7 @@ using SafeTestsets
         transformed_cost = TransformedCost(core_cost, TransformChain())
 
         # Initialize tracking along the null-space trajectory direction
-        sys = MDCSystem(transformed_cost, θ_nominal, θ_nominal, 1.0; names = [:mass, :damping, :stiffness])
+        sys = MDCProblem(transformed_cost, θ_nominal, θ_nominal, 1.0; names = [:mass, :damping, :stiffness])
         stabilizer = mdc_momentum_readjustment(sys; tol = 1.0e-3)
 
         # Run integration

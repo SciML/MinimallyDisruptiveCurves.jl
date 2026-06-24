@@ -84,7 +84,7 @@ end
     end
 
     @testset "Vector field factory - type stability" begin
-        rep = JET.@report_opt target_modules = (MinimallyDisruptiveCurves,) vectorfield(sys)
+        rep = JET.@report_opt target_modules = (MinimallyDisruptiveCurves,) MinimallyDisruptiveCurves.vectorfield(sys)
         @test isempty(JET.get_reports(rep))
     end
 

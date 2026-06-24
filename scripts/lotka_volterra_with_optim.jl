@@ -51,7 +51,7 @@ const EXPLORATION_DIR = 1           # Hessian eigenvector index selected for man
 
     return System(
         eqs, t_nounits, vars, params;
-        systems = System[],   name
+        systems = System[], name
     )
 end
 
@@ -101,7 +101,7 @@ function loss_function(p_active, p_tuple)
     sol = solve(newprob, Tsit5(); saveat = ts)
 
     if sol.retcode != SciMLBase.ReturnCode.Success
-        return eltype(p_active)(1e6) # Prevents NaN in Hessian
+        return eltype(p_active)(1.0e6) # Prevents NaN in Hessian
     end
 
     # Track states dynamically without allocations

@@ -110,7 +110,7 @@ function sparse_eigenbasis(hessian, num_vectors::Int; λ = 1.0, trim_level = 1.0
     for i in 1:num_vectors
         start_guess = copy(E.vectors[:, i])
 
-        # Pass the accumulated basis vectors directly. 
+        # Pass the accumulated basis vectors directly.
         # It starts as an empty vector, which maintains type stability!
         orthogonal_list = basis
 
@@ -137,4 +137,3 @@ function sparse_eigenbasis(hessian, num_vectors::Int; λ = 1.0, trim_level = 1.0
 
     return basis, values
 end
-

@@ -216,10 +216,9 @@ end
     y = last(buffers)
     init_ts = Base.front(ts)
     init_buffers = Base.front(buffers)
-    
+
     g_in = y # Reuse y as buffer for g_in
     pullback!(t, g_in, g_out, y, y)
-    
+
     return _pullback_chain!(init_ts, g_in, init_buffers)
 end
-

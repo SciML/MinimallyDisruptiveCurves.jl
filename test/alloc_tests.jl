@@ -33,7 +33,7 @@ end
 
     # Elegantly map the physical target back into optimizer space for p0
     p0 = inverse(chain, θ_physical)
-    
+
     # Initial direction in the optimizer space
     dp0 = [0.1, 0.1, 0.1]
     momentum = 10.0
@@ -66,12 +66,12 @@ end
         # The 1-arg cost method used here allocates a small temporary array for non-empty chains.
         # We allow this allocation because it runs in the discrete callback, not the ODE hot loop.
         res_allocs = @allocated MinimallyDisruptiveCurves.mdc_dHdu_residual(sys, u0, 1.0)
-        @test res_allocs <= 256 
+        @test res_allocs <= 256
     end
 
     @testset "TransformedCost Wrap Allocations" begin
         g_buffer = similar(p0)
-        
+
         # Generate the tuple of intermediate buffers using the package's internal helper
         fwd_caches = MinimallyDisruptiveCurves.generate_fwd_caches(chain, p0)
         N_physical = length(fwd_caches[end])

@@ -39,10 +39,10 @@ function MinimallyDisruptiveCurves.animate_mdc(
     out_dim = raw ? length(mdc_sys.names) : N_params
 
     Y_global = Matrix{Float64}(undef, length(full_grid), out_dim)
-    
+
     # Pre-allocate buffers for the forward pass to achieve zero allocations in the loop
     fwd_caches = MinimallyDisruptiveCurves.generate_fwd_caches(chain, sampled_states[1][1:N_params])
-    
+
     for (t_idx, state) in enumerate(sampled_states)
         θ_current = state[1:N_params]
         if raw
@@ -101,7 +101,7 @@ function MinimallyDisruptiveCurves.animate_mdc(
 
         state_current = curve(t_current)
         θ_transformed = state_current[1:N_params]
-        
+
         # Reuse the preallocated buffers here too!
         θ_physical = MinimallyDisruptiveCurves.forward!(chain, fwd_caches, θ_transformed)
 

@@ -16,7 +16,6 @@ FixedParamsTransform
 CostFunction
 TransformedCost
 MDCProblem
-vectorfield
 ODEProblem
 MDCSpan
 mdc_safety_callback

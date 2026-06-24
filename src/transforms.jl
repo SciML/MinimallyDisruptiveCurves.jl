@@ -169,3 +169,57 @@ function transform_names(chain::TransformChain, names::Vector{Symbol})
     end
     return current_names
 end
+
+
+# ====================================================================
+# --- Add in-place forward methods for each transform ---
+# ====================================================================
+function forward!(out, t::ScaleTransform, x)
+    @. out = x * t.w
+    return out
+end
+
+function forward!(out, ::LogAbsTransform, x)
+    @. out = exp(x)
+    return out
+end
+
+function forward!(out, t::FixedParamsTransform, x)
+    fill!(out, zero(eltype(out)))
+    @views out[t.free_idx] .= x
+    @views out[t.fixed_idx] .= t.fixed_vals
+    return out
+end
+
+# In-place forward for the chain (recursive for type stability)
+function forward!(chain::TransformChain, buffers::Tuple, x)
+    return _forward_chain!(chain.ts, buffers, x)
+end
+
+@inline _forward_chain!(::Tuple{}, ::Tuple{}, x) = x
+@inline function _forward_chain!(ts::Tuple, buffers::Tuple, x)
+    out = first(buffers)
+    forward!(out, first(ts), x)
+    return _forward_chain!(Base.tail(ts), Base.tail(buffers), out)
+end
+
+# In-place pullback for the chain (recursive for type stability)
+function pullback!(tc::TransformChain, g_final, g_out, buffers)
+    current_g = _pullback_chain!(tc.ts, g_out, buffers)
+    g_final .= current_g
+    return g_final
+end
+
+@inline _pullback_chain!(::Tuple{}, g_out, ::Tuple{}) = g_out
+@inline function _pullback_chain!(ts::Tuple, g_out, buffers::Tuple)
+    t = last(ts)
+    y = last(buffers)
+    init_ts = Base.front(ts)
+    init_buffers = Base.front(buffers)
+    
+    g_in = y # Reuse y as buffer for g_in
+    pullback!(t, g_in, g_out, y, y)
+    
+    return _pullback_chain!(init_ts, g_in, init_buffers)
+end
+

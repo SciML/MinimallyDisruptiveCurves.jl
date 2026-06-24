@@ -2,6 +2,17 @@
 # --- Core MDC Structs ---
 # ====================================================================
 
+function generate_fwd_caches(chain::TransformChain, θ₀)
+    return _generate_fwd_caches(chain.ts, θ₀)
+end
+
+@inline _generate_fwd_caches(::Tuple{}, θ₀) = ()
+@inline function _generate_fwd_caches(ts::Tuple, θ₀)
+    t = first(ts)
+    rest = Base.tail(ts)
+    out = forward(t, θ₀)
+    return (similar(out), _generate_fwd_caches(rest, out)...)
+end
 
 
 abstract type AbstractMDCProblem end
@@ -113,16 +124,15 @@ function vectorfield(sys::MDCProblem)
     H = sys.momentum
     N = length(θ₀)
     chain = cost.chain
-    N_physical = length(forward(chain, θ₀))
-
+    fwd_caches = generate_fwd_caches(chain, θ₀)
+    N_physical = isempty(fwd_caches) ? N : length(fwd_caches[end])
 
     # Allocate space caches once per thread closure
     grad_cache = Vector{eltype(θ₀)}(undef, N)
     diff_θ = Vector{eltype(θ₀)}(undef, N)
     gz_cache = Vector{eltype(θ₀)}(undef, N_physical)
 
-
-    let grad_cache = grad_cache, gz_cache = gz_cache, diff_θ = diff_θ, N = N, cost = cost, H = H, θ₀ = θ₀
+    let grad_cache = grad_cache, gz_cache = gz_cache, diff_θ = diff_θ, N = N, cost = cost, H = H, θ₀ = θ₀, fwd_caches = fwd_caches
         return function f!(du, u, p, t)
             θ = @view u[1:N]
             λ = @view u[(N + 1):end]
@@ -132,7 +142,7 @@ function vectorfield(sys::MDCProblem)
             @. diff_θ = θ - θ₀
             dist = sum(abs2, diff_θ)
 
-            C = cost(θ, grad_cache, gz_cache)
+            C = cost(θ, grad_cache, gz_cache, fwd_caches)
 
             # --- MDC Core equations---
             μ2 = (C - H) / 2.0

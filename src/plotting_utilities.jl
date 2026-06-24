@@ -30,15 +30,21 @@
 
     Y = Matrix{Float64}(undef, length(t_grid), out_dim)
 
-    # Non-allocating data unpacking via views
+    # Pre-allocate a single tuple of buffers for the chain
+    fwd_buffers = MinimallyDisruptiveCurves.generate_fwd_caches(chain, sampled_states[1][1:N_params])
+    Y = Matrix{Float64}(undef, length(t_grid), out_dim)
+
     for (t_idx, state) in enumerate(sampled_states)
         @views θ_current = state[1:N_params]
         if raw
-            Y[t_idx, :] .= MinimallyDisruptiveCurves.forward(chain, θ_current)
+            # Reuse the preallocated buffers for zero-allocation plotting
+            z = MinimallyDisruptiveCurves.forward!(chain, fwd_buffers, θ_current)
+            Y[t_idx, :] .= z
         else
             Y[t_idx, :] .= θ_current
         end
     end
+
 
     θ₀_processed = raw ? MinimallyDisruptiveCurves.forward(chain, θ₀) : θ₀
     if mode == :relative

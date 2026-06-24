@@ -58,9 +58,10 @@ using PrecompileTools: @setup_workload, @compile_workload
         _val = t_cost(θ₀)
         g_buffer = similar(θ₀)
         gz_buffer = Vector{eltype(θ₀)}(undef, N_physical)
+        mock_fwd_caches = MinimallyDisruptiveCurves.generate_fwd_caches(chain, θ₀)
 
         # Caches the new zero-allocation functor pathway
-        _val_grad = t_cost(θ₀, g_buffer, gz_buffer)
+        _val_grad = t_cost(θ₀, g_buffer, gz_buffer, mock_fwd_caches)
 
         # ----------------------------------------------------------------
         # 3. Precompile System & Workspace Initialization

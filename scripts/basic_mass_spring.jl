@@ -1,3 +1,10 @@
+"""
+This script shows how MDC finds a structural unidentifiability in the basic damped harmonic oscillator model (m=mass, c = damping, k = spring constant). It finds that the trajectory doesn't vary where c/m and k/m are constant.
+
+This script DOESN"T explore how to initialise a good starting MDC direction. One thing at a time. So we make a lucky guess. See `lotka_volterra_basic.jl` for an example of this. Or `mdc_NFKB.jl` for a more advanced example of this.
+"""
+
+
 using LinearAlgebra, OrdinaryDiffEq, MinimallyDisruptiveCurves, Plots
 using ForwardDiff
 
@@ -66,15 +73,15 @@ end
 println("--- Setting up Mass-Spring MDC Test ---")
 
 # Define our base physical system nominal profile
-θ_nominal = [1.0, 0.5, 5.0]     # True baseline: m=2.0, c=1.5, k=8.0
-dθ_nominal = [1.0, 0.5, 5.0]     # True baseline: m=2.0, c=1.5, k=8.0
+θ_nominal = [1.0, 0.5, 5.0]     # True baseline:
+dθ_nominal = [1.0, 0.5, 5.0]     # True baseline:
 u0_physical = [1.0, 0.0]        # Initial position=1, velocity=0
 tspan_physical = (0.0, 10.0)    # Observe for 10 seconds
 
 # 1. Build the Cost Function mapping parameter variants against the baseline
 core_cost = make_mse_cost_function(θ_nominal, u0 = u0_physical, tspan = tspan_physical)
 
-# 2. Wire up the Transform Chain
+# 2. Wire up the Transform Chain (empty in this case so not necessary)
 chain = TransformChain()
 transformed_cost = TransformedCost(core_cost, chain)
 

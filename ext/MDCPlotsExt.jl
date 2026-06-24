@@ -23,10 +23,9 @@ function MinimallyDisruptiveCurves.animate_mdc(
         error("Cannot animate an empty MDCSolution.")
     end
 
-    mdc_sys = hasproperty(curve, :sys) ? curve.sys : sample_sol.prob.p
-
-    # Unpack
-    chain = hasproperty(mdc_sys, :chain) ? mdc_sys.chain : mdc_sys.cost.chain
+    # Unpack the problem directly from the solution struct
+    mdc_sys = curve.spec
+    chain = mdc_sys.cost.chain
     θ₀ = mdc_sys.θ₀
 
     # 2. Reconstruct Continuous Time Domain Axis
@@ -40,9 +39,19 @@ function MinimallyDisruptiveCurves.animate_mdc(
     out_dim = raw ? length(mdc_sys.names) : N_params
 
     Y_global = Matrix{Float64}(undef, length(full_grid), out_dim)
+    
+    # Pre-allocate buffers for the forward pass to achieve zero allocations in the loop
+    fwd_caches = MinimallyDisruptiveCurves.generate_fwd_caches(chain, sampled_states[1][1:N_params])
+    
     for (t_idx, state) in enumerate(sampled_states)
         θ_current = state[1:N_params]
-        Y_global[t_idx, :] .= raw ? MinimallyDisruptiveCurves.forward(chain, θ_current) : θ_current
+        if raw
+            # Reuse the preallocated buffers
+            z = MinimallyDisruptiveCurves.forward!(chain, fwd_caches, θ_current)
+            Y_global[t_idx, :] .= z
+        else
+            Y_global[t_idx, :] .= θ_current
+        end
     end
 
     θ₀_processed = raw ? MinimallyDisruptiveCurves.forward(chain, θ₀) : θ₀
@@ -92,7 +101,9 @@ function MinimallyDisruptiveCurves.animate_mdc(
 
         state_current = curve(t_current)
         θ_transformed = state_current[1:N_params]
-        θ_physical = MinimallyDisruptiveCurves.forward(chain, θ_transformed)
+        
+        # Reuse the preallocated buffers here too!
+        θ_physical = MinimallyDisruptiveCurves.forward!(chain, fwd_caches, θ_transformed)
 
         y_cursor = raw ? θ_physical[active_indices] : θ_transformed[active_indices]
 

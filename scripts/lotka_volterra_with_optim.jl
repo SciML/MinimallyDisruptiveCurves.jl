@@ -20,14 +20,14 @@ using MinimallyDisruptiveCurves
 
 # Global Configuration Parameters
 const TSPAN_PHYSICAL = (0.0, 10.0)  # Time horizon for the differential equations
-const EXPLORATION_DIR = 2           # Hessian eigenvector index selected for manifold path initialization
+const EXPLORATION_DIR = 1           # Hessian eigenvector index selected for manifold path initialization
 
 # ====================================================================
 # 1. MODEL DEFINITION via ModelingToolkit (MTK)
 # ====================================================================
 
 @component function LotkaVolterra(;
-        name, α = 1.3, β = 0.9, γ = 0.8, δ = 1.8
+        name, α = 1.5, β = 1.0, γ = 1.0, δ = 3.0
     )
     @parameters begin
         α = α
@@ -39,17 +39,11 @@ const EXPLORATION_DIR = 2           # Hessian eigenvector index selected for man
     push!(params, α); push!(params, β); push!(params, γ); push!(params, δ)
 
     @variables begin
-        x(t_nounits)
-        y(t_nounits)
+        x(t_nounits) = 1.0
+        y(t_nounits) = 1.0
     end
     vars = SymbolicT[]
     push!(vars, x); push!(vars, y)
-
-    initial_conditions = Dict{SymbolicT, SymbolicT}()
-    push!(initial_conditions, x => 3.1)
-    push!(initial_conditions, y => 1.5)
-
-    guesses = Dict{SymbolicT, SymbolicT}()
 
     eqs = Equation[]
     push!(eqs, D_nounits(x) ~ α * x - β * x * y)
@@ -57,7 +51,7 @@ const EXPLORATION_DIR = 2           # Hessian eigenvector index selected for man
 
     return System(
         eqs, t_nounits, vars, params;
-        systems = System[], initial_conditions, guesses, name
+        systems = System[],   name
     )
 end
 
@@ -107,7 +101,7 @@ function loss_function(p_active, p_tuple)
     sol = solve(newprob, Tsit5(); saveat = ts)
 
     if sol.retcode != SciMLBase.ReturnCode.Success
-        return eltype(p_active)(Inf) # Strict type stability for dual-number propagation
+        return eltype(p_active)(1e6) # Prevents NaN in Hessian
     end
 
     # Track states dynamically without allocations
@@ -128,7 +122,8 @@ getter = getp(prob, params_to_optimize)
 
 raw_ps = parameter_values(prob)
 tunable_vector_prototype = copy(canonicalize(Tunable(), raw_ps)[1])
-diffcache = DiffCache(tunable_vector_prototype)
+x_nominal = getter(prob)
+diffcache = DiffCache(tunable_vector_prototype, Val(length(x_nominal)))
 
 # Package context containing all required structural parameters
 p_tuple = (prob, grid_steps, nom_features, setter, diffcache, target_observables)
@@ -163,7 +158,7 @@ param_names = params_to_optimize .|> Symbol
 # Pass BOTH the objective and its in-place gradient function into CostFunction
 base_cost = CostFunction(f_wrapped, grad_wrapped!)
 
-pipeline = TransformChain(LogAbsTransform())
+pipeline = TransformChain()
 final_cost = TransformedCost(base_cost, pipeline)
 
 x_nominal_transformed = MinimallyDisruptiveCurves.inverse(pipeline, p_nominal)
@@ -176,7 +171,7 @@ mdc_sys = MDCProblem(
     final_cost,
     x_nominal_transformed,
     init_dir_trans,
-    1.0;
+    10.0;
     names = param_names
 )
 

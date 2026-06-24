@@ -44,3 +44,10 @@ function (tc::TransformedCost)(θ, gθ)
     gz = similar(z) # Acceptable for one-off manual calls
     return tc(θ, gθ, gz)
 end
+
+function (tc::TransformedCost)(θ, gθ, gz, buffers)
+    z = forward!(tc.chain, buffers, θ) 
+    gradient!(tc.cost, gz, z)
+    pullback!(tc.chain, gθ, gz, buffers)
+    return value(tc.cost, z)
+end

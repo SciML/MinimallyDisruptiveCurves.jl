@@ -3,6 +3,9 @@ using SciMLTesting
 
 run_tests(;
     core = function ()
+        @safetestset "Sparse Initialization Utilities" begin
+            include(joinpath(@__DIR__, "test_utilities.jl"))
+        end
         @safetestset "Transforms & Pullback Analytics" begin
             include(joinpath(@__DIR__, "test_transforms.jl"))
         end

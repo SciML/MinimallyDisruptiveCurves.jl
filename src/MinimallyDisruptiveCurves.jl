@@ -18,8 +18,8 @@ include("utilities.jl")
 import Base.show
 
 export AbstractTransform, TransformChain, ScaleTransform, LogAbsTransform, FixedParamsTransform
-export AbstractCost, CostFunction, TransformedCost, inverse, forward, gradient!
-export MDCSolve, MDCProblem, MDCWorkspace, ODEProblem, MDCSpan
+export AbstractCost, CostFunction, TransformedCost, inverse, forward, gradient!, value_and_gradient!, cost_trajectory
+export MDCSolve, MDCProblem, ODEProblem, MDCSpan
 export forward!, pullback!, generate_fwd_caches
 
 

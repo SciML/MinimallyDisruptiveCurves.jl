@@ -55,7 +55,7 @@ end
         names = [:A, :B]
     )
 
-    ws = MDCWorkspace(sys)
+    ws = MinimallyDisruptiveCurves.MDCWorkspace(sys)
 
     # Pre-allocate containers for vector field execution
     vf! = MinimallyDisruptiveCurves.vectorfield(sys)

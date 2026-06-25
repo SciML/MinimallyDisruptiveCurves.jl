@@ -36,5 +36,6 @@ models/
 sandbox/
 src/notes.md 
 src/Algorithm_notes.md
+test/qa/Project.toml
 
 # End of https://www.toptal.com/developers/gitignore/api/julia*.gif

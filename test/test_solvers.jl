@@ -77,5 +77,17 @@ using SafeTestsets
 
         # Final MSE structural variance should be effectively zero (or very close to it)
         @test core_cost.f(θ_explored) < 1.0e-4
+        # In test_solvers.jl, inside the mass-spring testset:
+        mdc_curves_explicit = MDCSolve(sys, span = MDCSpan(-0.5, 0.5); alg = Tsit5())
+        @test mdc_curves_explicit.positive_sol !== nothing
+
+        # Verify cost_trajectory accessor matches manual evaluation
+        ts_sample = [0.0, 0.5, 1.0, 1.5, 2.0]
+        manual_costs = [sys.cost(mdc_curves(t; type = :parameters)) for t in ts_sample]
+        accessor_costs = cost_trajectory(mdc_curves, ts_sample)
+        @test accessor_costs ≈ manual_costs
+
+        # Cost at the origin should match the initial cost (curve hasn't moved)
+        @test cost_trajectory(mdc_curves, [0.0])[1] ≈ sys.cost(sys.θ₀)
     end
 end

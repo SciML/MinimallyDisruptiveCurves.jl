@@ -39,7 +39,7 @@ end
     momentum = 10.0
 
     sys = MDCProblem(cost, p0, dp0, momentum; names = [:a, :b, :c])
-    ws = MDCWorkspace(sys)
+    ws = MinimallyDisruptiveCurves.MDCWorkspace(sys)
 
     λ₀ = MinimallyDisruptiveCurves.initialise_lambda(sys, ws)
     f! = MinimallyDisruptiveCurves.vectorfield(sys)

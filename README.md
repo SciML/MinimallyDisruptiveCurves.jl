@@ -2,6 +2,8 @@
 
 This is a toolbox implementing the algorithm introduced in [1]. **Documentation, examples, and user guide are found [here](https://dhruva2.github.io/MinimallyDisruptiveCurves.docs/).**
 
+A Python version using Diffrax and Jax is [here](https://pypi.org/project/minimally-disruptive-curves/). It's less tested and necessarily uses a slightly worse curve evolution algorithm due to more limited callback functionalities in the Python ODE solvers.
+
 The package is a model analysis tool. It finds functional relationships between model parameters that best preserve model behaviour.
 
   - You provide a differentiable cost function that maps parameters to 'how bad the model behaviour is'. You also provide a locally optimal set of parameters θ*.

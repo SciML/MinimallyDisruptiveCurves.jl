@@ -5,7 +5,6 @@ abstract type AbstractCost end
 # ====================================================================
 
 
-
 """
     CostFunction(f, grad!)
     CostFunction(f, grad!, fg)
@@ -94,7 +93,7 @@ function fg(g, θ)
 end
 cost = CostFunction(fg)
 ```
-"""    
+"""
 struct CostFunction{F, G, FG} <: AbstractCost
     f::F
     grad!::G
@@ -119,7 +118,6 @@ end
 # (no extra constructor needed — the default struct constructor handles this)
 
 
-
 value(c::CostFunction, θ) = c.f(θ)
 gradient!(c::CostFunction, g, θ) = c.grad!(g, θ)
 
@@ -141,11 +139,6 @@ end
 function value_and_gradient!(c::CostFunction{F, G, FG}, g, z) where {F, G, FG}
     return c.fg(g, z)
 end
-
-
-
-
-
 
 
 """

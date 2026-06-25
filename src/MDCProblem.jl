@@ -490,7 +490,7 @@ end
 
 function cost_trajectory(curve::MDCSolution, ts::AbstractVector)
     cost = curve.spec.cost
-    return [cost(curve(t; type=:parameters)) for t in ts]
+    return [cost(curve(t; type = :parameters)) for t in ts]
 end
 
 function cost_trajectory(curve::MDCSolution)

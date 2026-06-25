@@ -85,7 +85,7 @@ using PrecompileTools: @setup_workload, @compile_workload
         # Solve the ODE (compiles Tsit5, OrdinaryDiffEq routines, and your vector field)
         curve = MDCSolve(sys; span = tiny_span, callback = cb_safety)
 
-        # Precompile the cost_trajectory accessor 
+        # Precompile the cost_trajectory accessor
         _sample_t = !isnothing(curve.positive_sol) ? curve.positive_sol.t[1:min(end, 2)] : [0.0]
         _ = cost_trajectory(curve, _sample_t)
 

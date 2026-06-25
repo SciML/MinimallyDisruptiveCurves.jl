@@ -83,14 +83,11 @@ using SafeTestsets
 
         # Verify cost_trajectory accessor matches manual evaluation
         ts_sample = [0.0, 0.5, 1.0, 1.5, 2.0]
-        manual_costs = [sys.cost(mdc_curves(t; type=:parameters)) for t in ts_sample]
+        manual_costs = [sys.cost(mdc_curves(t; type = :parameters)) for t in ts_sample]
         accessor_costs = cost_trajectory(mdc_curves, ts_sample)
         @test accessor_costs ≈ manual_costs
 
         # Cost at the origin should match the initial cost (curve hasn't moved)
         @test cost_trajectory(mdc_curves, [0.0])[1] ≈ sys.cost(sys.θ₀)
-   end
+    end
 end
-
-
-

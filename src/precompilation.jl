@@ -67,7 +67,7 @@ using PrecompileTools: @setup_workload, @compile_workload
         # 3. Precompile System & Workspace Initialization
         # ----------------------------------------------------------------
         sys = MDCProblem(t_cost, θ₀, dθ₀, H_val; names = mock_physical_names)
-        ws = MDCWorkspace(sys)
+        ws = MinimallyDisruptiveCurves.MDCWorkspace(sys)
 
         # Trigger internal factory and lambda allocations
         _λ₀ = MinimallyDisruptiveCurves.initialise_lambda(sys, ws)

@@ -365,17 +365,23 @@ function mdc_verbose_callbacks(sys::MDCProblem, timepoints; is_negative = false)
     return (distance_cb, residual_cb)
 end
 
-
 """
-    MDCSolve(sys::MDCProblem; kwargs...) -> MDCSolution
+    MDCSolve(sys::MDCProblem; span, mode, dt, callback, parallel, alg=Tsit5()) -> MDCSolution
 
 Solve the Minimally Disruptive Curve (MDC) differential equations for a given system.
-
 This function integrates the MDC vector field both forwards and backwards in time from the 
 initial state, returning an `MDCSolution` containing the joint trajectory pieces. It internally 
 constructs a unified initial condition state vector combining parameters \$\\theta_0\$ and 
 their respective tracking sensitivities \$\\lambda_0\$.
-    
+
+# Keyword arguments
+- `span::MDCSpan`: arc-length range to integrate over (default `MDCSpan(-10.0, 10.0)`).
+- `alg`: any `OrdinaryDiffEq.AbstractODEAlgorithm`. Defaults to `Tsit5()`. Pass a stiff
+  solver (e.g. `Rodas5()`) if your cost function has stiff Jacobians.
+- `mode`: `:adaptive` (default), `:fixed`, or `:fast`.
+- `dt`: step size hint for `:fixed` and `:fast` modes.
+- `callback`: a `DiscreteCallback`, `CallbackSet`, or `nothing`.
+- `parallel::Bool`: solve the forward and backward pieces concurrently via `Threads.@spawn`.
 """
 function MDCSolve(
         sys::MDCProblem;
@@ -383,7 +389,8 @@ function MDCSolve(
         mode = :adaptive,
         dt = 0.01,
         callback = nothing,
-        parallel = false
+        parallel = false,
+        alg = Tsit5()
     )
 
     ws = MDCWorkspace(sys)
@@ -395,7 +402,6 @@ function MDCSolve(
     u0[1:length(sys.θ₀)] .= sys.θ₀
     u0[(length(sys.θ₀) + 1):end] .= λ₀
 
-    alg = Tsit5()
 
     solve_kwargs = if mode == :fixed
         (adaptive = false, dt = dt)
@@ -481,6 +487,25 @@ function (curve::MDCSolution)(t::Real; type = :all)
         error("Unknown type filter: :$type. Use :all, :parameters, or :costates.")
     end
 end
+
+function cost_trajectory(curve::MDCSolution, ts::AbstractVector)
+    cost = curve.spec.cost
+    return [cost(curve(t; type=:parameters)) for t in ts]
+end
+
+function cost_trajectory(curve::MDCSolution)
+    ts = if !isnothing(curve.negative_sol) && !isnothing(curve.positive_sol)
+        vcat(curve.negative_sol.t, curve.positive_sol.t)
+    elseif !isnothing(curve.negative_sol)
+        curve.negative_sol.t
+    elseif !isnothing(curve.positive_sol)
+        curve.positive_sol.t
+    else
+        error("Cannot compute cost_trajectory: both solutions are empty.")
+    end
+    return cost_trajectory(curve, ts)
+end
+
 
 function Base.show(io::IO, ::MIME"text/plain", curve::MDCSolution)
     if isnothing(curve.spec)

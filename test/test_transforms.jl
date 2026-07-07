@@ -151,4 +151,53 @@ using SafeTestsets
             Symbol("log(abs(physical_3))"),
         ]
     end
+    @testset "4-Arg Hot-Path with Dimension-Changing Chain" begin
+        # Chain maps 2D optimizer space -> 3D physical space
+        fix_transform = FixedParamsTransform([2, 3], [1.0], 3)
+        chain = TransformChain(LogAbsTransform(), fix_transform)
+        
+        # Mock cost operating in 3D physical space: C(z) = 0.5 * sum(abs2, z)
+        struct MockLinearCost <: AbstractCost end
+        MinimallyDisruptiveCurves.value(::MockLinearCost, z) = 0.5 * sum(abs2, z)
+        function MinimallyDisruptiveCurves.gradient!(::MockLinearCost, g, z)
+            @. g = z
+            return g
+        end
+        
+        cost = MockLinearCost()
+        tcost = TransformedCost(cost, chain)
+
+        # 2D optimizer space parameters
+        θ_opt = [0.5, 1.0] 
+        
+        # Pre-allocate the exact buffers the ODE solver would generate
+        fwd_caches = MinimallyDisruptiveCurves.generate_fwd_caches(chain, θ_opt)
+        N_physical = length(fwd_caches[end]) # 3
+        gz_buf = Vector{Float64}(undef, N_physical)
+        g_final = similar(θ_opt) # Length 2
+
+        # --- Test the internal 4-arg pullback! directly ---
+        # Manually compute forward to get z
+        z = MinimallyDisruptiveCurves.forward!(chain, fwd_caches, θ_opt)
+        
+        # Fill gz_buf with a dummy physical gradient (e.g., dC/dz = z)
+        @. gz_buf = z 
+        
+        # This is the call that triggered DimensionMismatch before the fix
+        MinimallyDisruptiveCurves.pullback!(chain, g_final, gz_buf, fwd_caches)
+        
+        # Expected pullback: lat -> fpt
+        # lat pullback: g_in_lat = gz_buf * z (element-wise)
+        # fpt pullback: g_final = g_in_lat[free_indices]
+        expected_g = (gz_buf .* z)[[2, 3]]
+        @test g_final ≈ expected_g
+
+        # --- Test the full TransformedCost 4-arg functor ---
+        # This is the exact path called by vectorfield(sys)
+        val = tcost(θ_opt, g_final, gz_buf, fwd_caches)
+        
+        @test val ≈ 0.5 * sum(abs2, z)
+        @test g_final ≈ expected_g
+    end
+
 end

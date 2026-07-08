@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Basic Lotka-Volterra · MinimallyDisruptiveCurves.jl Documentation</title><meta name="title" content="Basic Lotka-Volterra · MinimallyDisruptiveCurves.jl Documentation"/><meta property="og:title" content="Basic Lotka-Volterra · MinimallyDisruptiveCurves.jl Documentation"/><meta property="twitter:title" content="Basic Lotka-Volterra · MinimallyDisruptiveCurves.jl Documentation"/><meta name="description" content="Documentation for MinimallyDisruptiveCurves.jl Documentation."/><meta property="og:description" content="Documentation for MinimallyDisruptiveCurves.jl Documentation."/><meta property="twitter:description" content="Documentation for MinimallyDisruptiveCurves.jl Documentation."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">MinimallyDisruptiveCurves.jl Documentation</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../01_basic_mass_spring/">Basic Mass-Spring</a></li><li><a class="tocitem" href="../02_transforming_costs/">Mass-Spring with Transforms</a></li><li class="is-active"><a class="tocitem" href>Basic Lotka-Volterra</a><ul class="internal"><li><a class="tocitem" href="#Simulator-(Lotka-Volterra)"><span>Simulator (Lotka-Volterra)</span></a></li><li><a class="tocitem" href="#Objective-Features-and-Cost-Framework"><span>Objective Features &amp; Cost Framework</span></a></li><li><a class="tocitem" href="#Execution-Pipeline"><span>Execution Pipeline</span></a></li><li><a class="tocitem" href="#Animation-Pipeline-Integration"><span>Animation Pipeline Integration</span></a></li></ul></li><li><a class="tocitem" href="../04_lotka_volterra_with_optim/">MTK Lotka-Volterra</a></li><li><a class="tocitem" href="../05_nfkb/">NFKB model</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Basic Lotka-Volterra</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Basic Lotka-Volterra</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SciML/MinimallyDisruptiveCurves.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SciML/MinimallyDisruptiveCurves.jl/blob/master/docs/examples/03_basic_lotka_volterra.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><pre><code class="language-julia hljs">ENV[&quot;GKSwstype&quot;] = &quot;100&quot;;</code></pre><h1 id="Basic-Lotka-Volterra-System"><a class="docs-heading-anchor" href="#Basic-Lotka-Volterra-System">Basic Lotka-Volterra System</a><a id="Basic-Lotka-Volterra-System-1"></a><a class="docs-heading-anchor-permalink" href="#Basic-Lotka-Volterra-System" title="Permalink"></a></h1><p>This example introduces a more robust way to initialize the MDC direction. Instead of making a lucky guess, we compute the local Hessian of the cost function at the nominal parameters. The eigenvector corresponding to the smallest eigenvalue gives us the direction of least resistance (the most unidentifiable direction).</p><p>We also move away from matching raw trajectories and instead match structural <em>features</em> of the system: the mean prey population and the maximum predator population.</p><pre><code class="language-julia hljs">using LinearAlgebra, OrdinaryDiffEq, MinimallyDisruptiveCurves, Statistics, Plots, ForwardDiff, LaTeXStrings</code></pre><p>Which eigenvector (direction) to explore along the manifold. They tend to be iteratively more disruptive.</p><pre><code class="language-julia hljs">which_dir = 1</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">1</code></pre><h2 id="Simulator-(Lotka-Volterra)"><a class="docs-heading-anchor" href="#Simulator-(Lotka-Volterra)">Simulator (Lotka-Volterra)</a><a id="Simulator-(Lotka-Volterra)-1"></a><a class="docs-heading-anchor-permalink" href="#Simulator-(Lotka-Volterra)" title="Permalink"></a></h2><pre><code class="language-julia hljs">function lotka_volterra_dynamics!(du, u, p, t)
+    du[1] = p[1] * u[1] - p[2] * u[1] * u[2]
+    du[2] = -p[3] * u[2] + p[4] * u[1] * u[2]
+    return nothing
+end
+
+u0 = [1.0, 1.0]
+tspan = (0.0, 10.0)
+p_nominal = [1.5, 1.0, 3.0, 1.0]
+
+nom_prob = ODEProblem(lotka_volterra_dynamics!, u0, tspan, p_nominal)
+
+#Helper for evaluations
+solve_at_p(p) = solve(remake(nom_prob; p = p), Tsit5())</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">solve_at_p (generic function with 1 method)</code></pre><h2 id="Objective-Features-and-Cost-Framework"><a class="docs-heading-anchor" href="#Objective-Features-and-Cost-Framework">Objective Features &amp; Cost Framework</a><a id="Objective-Features-and-Cost-Framework-1"></a><a class="docs-heading-anchor-permalink" href="#Objective-Features-and-Cost-Framework" title="Permalink"></a></h2><p>Here we extract features from the simulation: the mean of the prey and the max of the predator.</p><pre><code class="language-julia hljs">function extract_features(p)
+    sol = solve_at_p(p)
+    grid = range(0.0, 10.0, length = 200)
+    mean_prey = mean(sol(t)[1] for t in grid)
+    max_predator = maximum(sol(t)[2] for t in grid)
+    return [mean_prey, max_predator]
+end
+
+nom_features = extract_features(p_nominal)
+
+function loss(p)
+    p_features = extract_features(p)
+    return sum(abs2, p_features .- nom_features)
+end
+
+function loss_grad!(g, p)
+    ForwardDiff.gradient!(g, loss, p)
+    return g
+end
+
+core_cost = CostFunction(loss, loss_grad!)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">CostFunction{typeof(Main.loss), typeof(Main.loss_grad!), Nothing}(Main.loss, Main.loss_grad!, nothing)</code></pre><h2 id="Execution-Pipeline"><a class="docs-heading-anchor" href="#Execution-Pipeline">Execution Pipeline</a><a id="Execution-Pipeline-1"></a><a class="docs-heading-anchor-permalink" href="#Execution-Pipeline" title="Permalink"></a></h2><p>Compute the local Hessian at nominal parameters to discover insensitive directions.</p><pre><code class="language-julia hljs">println(&quot;--- Setting up Lotka-Volterra MDC System ---&quot;)
+
+hess0 = ForwardDiff.hessian(loss, p_nominal)
+eigen_decomposition = eigen(hess0)
+init_dir = eigen_decomposition.vectors[:, which_dir]
+
+sys = MDCProblem(
+    core_cost,
+    p_nominal,
+    init_dir,
+    1.0;
+    names = [:p₁, :p₂, :p₃, :p₄]
+)
+
+println(&quot;Launching MDC integration...&quot;)
+mdc_curves = MDCSolve(sys, span = MDCSpan(-3.0, 8.0))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Minimally Disruptive Curve (MDCSolution)
+====================================
+  • Parameter Dimensions : 4
+  • Explored Span        : [-3.0 ↔ 8.0] (Arc length)
+  • Initial Cost (C₀)    : 0.0
+  • Total Energy (H)     : 1.0
+  • Max Parameter Shifts :
+      p₁                  : [1.043 ↔ 2.159]
+      p₂                  : [1.178 ↔ 0.982]
+      p₃                  : [5.819 ↔ 0.403]
+      p₄                  : [1.896 ↔ 0.105]
+</code></pre><h2 id="Animation-Pipeline-Integration"><a class="docs-heading-anchor" href="#Animation-Pipeline-Integration">Animation Pipeline Integration</a><a id="Animation-Pipeline-Integration-1"></a><a class="docs-heading-anchor-permalink" href="#Animation-Pipeline-Integration" title="Permalink"></a></h2><pre><code class="language-julia hljs">println(&quot;\nPreparing MDC animation...&quot;)
+
+#Define the live sandbox rendering function
+function lotka_volterra_sandbox_painter(θ_physical)
+    plot_t_grid = range(tspan[1], tspan[2], length = 200)
+
+    sol_nominal = solve_at_p(p_nominal)
+    sol_perturbed = solve_at_p(θ_physical)
+
+    states_nom = [sol_nominal(t_val) for t_val in plot_t_grid]
+    states_pert = [sol_perturbed(t_val) for t_val in plot_t_grid]
+
+    prey_nominal = [u[1] for u in states_nom]
+    pred_nominal = [u[2] for u in states_nom]
+
+    prey_perturbed = [u[1] for u in states_pert]
+    pred_perturbed = [u[2] for u in states_pert]
+
+    mean_prey_nom = mean(prey_nominal)
+    mean_prey_pert = mean(prey_perturbed)
+    max_pred_nom = maximum(pred_nominal)
+    max_pred_pert = maximum(pred_perturbed)
+
+    Plots.plot!(
+        plot_t_grid, [prey_nominal pred_nominal],
+        subplot = 1,
+        linealpha = 0.2, linestyle = :dash,
+        color = [:blue :red], label = false
+    )
+
+    Plots.plot!(
+        plot_t_grid, [prey_perturbed pred_perturbed],
+        subplot = 1,
+        linewidth = 2,
+        color = [:blue :red], label = [&quot;Prey (x)&quot; &quot;Predator (y)&quot;],
+        legend = :topright
+    )
+
+    Plots.hline!([mean_prey_nom], subplot = 1, linestyle = :dot, linealpha = 0.4, color = :blue, label = false)
+    Plots.hline!([max_pred_nom], subplot = 1, linestyle = :dot, linealpha = 0.4, color = :red, label = false)
+
+    Plots.hline!([mean_prey_pert], subplot = 1, linestyle = :dashdot, linewidth = 1.2, color = :darkblue, label = &quot;Mean Prey&quot;)
+    Plots.hline!([max_pred_pert], subplot = 1, linestyle = :dashdot, linewidth = 1.2, color = :darkred, label = &quot;Max Predator&quot;)
+
+    return Plots.plot!(
+        subplot = 1,
+        xlabel = &quot;Time&quot;, ylabel = &quot;Population&quot;,
+        xlims = tspan,
+        ylims = (0.0, 6.0)
+    )
+end
+
+#Invoke the updated linear animation tracking utility function
+lv_animation = MinimallyDisruptiveCurves.animate_mdc(
+    mdc_curves,
+    lotka_volterra_sandbox_painter;
+    fps = 20,
+    density = 150,
+    raw = true
+)
+
+output_path = joinpath(pwd(), &quot;lotka_volterra_mdc.gif&quot;)
+println(&quot;Rendering frames and saving video to: $output_path&quot;)
+Plots.gif(lv_animation, output_path);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">
+Preparing MDC animation...
+Rendering frames and saving video to: /home/runner/_work/MinimallyDisruptiveCurves.jl/MinimallyDisruptiveCurves.jl/docs/build/examples/lotka_volterra_mdc.gif
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Saved animation to /home/runner/_work/MinimallyDisruptiveCurves.jl/MinimallyDisruptiveCurves.jl/docs/build/examples/lotka_volterra_mdc.gif</code></pre><p><img src="../lotka_volterra_mdc.gif" alt="Lotka Volterra MDC Sweep"/></p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../02_transforming_costs/">« Mass-Spring with Transforms</a><a class="docs-footer-nextpage" href="../04_lotka_volterra_with_optim/">MTK Lotka-Volterra »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Wednesday 8 July 2026 12:09">Wednesday 8 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

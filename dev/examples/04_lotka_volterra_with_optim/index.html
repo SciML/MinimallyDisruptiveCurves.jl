@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>MTK Lotka-Volterra · MinimallyDisruptiveCurves.jl Documentation</title><meta name="title" content="MTK Lotka-Volterra · MinimallyDisruptiveCurves.jl Documentation"/><meta property="og:title" content="MTK Lotka-Volterra · MinimallyDisruptiveCurves.jl Documentation"/><meta property="twitter:title" content="MTK Lotka-Volterra · MinimallyDisruptiveCurves.jl Documentation"/><meta name="description" content="Documentation for MinimallyDisruptiveCurves.jl Documentation."/><meta property="og:description" content="Documentation for MinimallyDisruptiveCurves.jl Documentation."/><meta property="twitter:description" content="Documentation for MinimallyDisruptiveCurves.jl Documentation."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">MinimallyDisruptiveCurves.jl Documentation</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../01_basic_mass_spring/">Basic Mass-Spring</a></li><li><a class="tocitem" href="../02_transforming_costs/">Mass-Spring with Transforms</a></li><li><a class="tocitem" href="../03_basic_lotka_volterra/">Basic Lotka-Volterra</a></li><li class="is-active"><a class="tocitem" href>MTK Lotka-Volterra</a><ul class="internal"><li><a class="tocitem" href="#Model-Definition-via-ModelingToolkit-(MTK)"><span>Model Definition via ModelingToolkit (MTK)</span></a></li><li><a class="tocitem" href="#Generate-Baseline-Experimental-Features-(&quot;Truth&quot;)"><span>Generate Baseline Experimental Features (&quot;Truth&quot;)</span></a></li><li><a class="tocitem" href="#High-Performance-Loss-Function"><span>High-Performance Loss Function</span></a></li><li><a class="tocitem" href="#Build-the-MDC-context"><span>Build the MDC context</span></a></li><li><a class="tocitem" href="#MDC-Generation-Pipeline"><span>MDC Generation Pipeline</span></a></li><li><a class="tocitem" href="#Animation-Pipeline-Integration"><span>Animation Pipeline Integration</span></a></li></ul></li><li><a class="tocitem" href="../05_nfkb/">NFKB model</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>MTK Lotka-Volterra</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>MTK Lotka-Volterra</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SciML/MinimallyDisruptiveCurves.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SciML/MinimallyDisruptiveCurves.jl/blob/master/docs/examples/04_lotka_volterra_with_optim.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><pre><code class="language-julia hljs">ENV[&quot;GKSwstype&quot;] = &quot;100&quot;</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;100&quot;</code></pre><h1 id="MTK-Lotka-Volterra-with-Optimized-Gradients"><a class="docs-heading-anchor" href="#MTK-Lotka-Volterra-with-Optimized-Gradients">MTK Lotka-Volterra with Optimized Gradients</a><a id="MTK-Lotka-Volterra-with-Optimized-Gradients-1"></a><a class="docs-heading-anchor-permalink" href="#MTK-Lotka-Volterra-with-Optimized-Gradients" title="Permalink"></a></h1><p>This example does the same Lotka-Volterra model, but builds it with <code>ModelingToolkit</code> (MTK). MTK allows us to symbolically define our equations and automatically generate efficient, type-stable code.</p><p>To ensure our gradients remain allocation-free and fully compatible with ForwardDiff dual numbers, we introduce <code>PreallocationTools</code> and <code>DiffCache</code>. This is the recommended pattern for performance-critical, simulation-based costs.</p><pre><code class="language-julia hljs">using ModelingToolkit, Plots
+using OrdinaryDiffEq
+using ForwardDiff
+using PreallocationTools
+using SymbolicIndexingInterface
+using SymbolicIndexingInterface: parameter_values
+using SciMLStructures: Tunable, canonicalize, replace
+using SciMLBase, LinearAlgebra
+import ModelingToolkit.t_nounits
+import ModelingToolkit.D_nounits
+import ModelingToolkit: SymbolicT
+using Printf
+using Statistics
+using MinimallyDisruptiveCurves</code></pre><p>Global Configuration Parameters</p><pre><code class="language-julia hljs">const TSPAN_PHYSICAL = (0.0, 10.0)  #Time horizon for the differential equations
+const EXPLORATION_DIR = 2           #Hessian eigenvector index selected for curve evolution</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2</code></pre><h2 id="Model-Definition-via-ModelingToolkit-(MTK)"><a class="docs-heading-anchor" href="#Model-Definition-via-ModelingToolkit-(MTK)">Model Definition via ModelingToolkit (MTK)</a><a id="Model-Definition-via-ModelingToolkit-(MTK)-1"></a><a class="docs-heading-anchor-permalink" href="#Model-Definition-via-ModelingToolkit-(MTK)" title="Permalink"></a></h2><pre><code class="language-julia hljs">@component function LotkaVolterra(;
+        name, α = 1.5, β = 1.0, γ = 1.0, δ = 3.0
+    )
+    @parameters begin
+        α = α
+        β = β
+        γ = γ
+        δ = δ
+    end
+    params = SymbolicT[]
+    push!(params, α); push!(params, β); push!(params, γ); push!(params, δ)
+
+    @variables begin
+        x(t_nounits) = 1.0
+        y(t_nounits) = 1.0
+    end
+    vars = SymbolicT[]
+    push!(vars, x); push!(vars, y)
+
+    eqs = Equation[]
+    push!(eqs, D_nounits(x) ~ α * x - β * x * y)
+    push!(eqs, D_nounits(y) ~ -δ * y + γ * x * y)
+
+    return System(
+        eqs, t_nounits, vars, params;
+        systems = System[], name
+    )
+end
+
+@named lv = LotkaVolterra()
+sys = complete(lv)
+prob = ODEProblem(sys, [], TSPAN_PHYSICAL)
+params_to_optimize = tunable_parameters(sys) ∩ parameters(sys)
+
+#Define tracking observables (State arrays)
+target_observables = [sys.x, sys.y]</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2-element Vector{Symbolics.Num}:
+ x(t)
+ y(t)</code></pre><h2 id="Generate-Baseline-Experimental-Features-(&quot;Truth&quot;)"><a class="docs-heading-anchor" href="#Generate-Baseline-Experimental-Features-(&quot;Truth&quot;)">Generate Baseline Experimental Features (&quot;Truth&quot;)</a><a id="Generate-Baseline-Experimental-Features-(&quot;Truth&quot;)-1"></a><a class="docs-heading-anchor-permalink" href="#Generate-Baseline-Experimental-Features-(&quot;Truth&quot;)" title="Permalink"></a></h2><pre><code class="language-julia hljs">grid_steps = range(TSPAN_PHYSICAL[1], TSPAN_PHYSICAL[2], length = 200)
+sol_nominal = solve(prob, Tsit5(); saveat = grid_steps)
+tspan = TSPAN_PHYSICAL
+
+nom_data = sol_nominal(grid_steps, idxs = target_observables)
+const nom_features = [
+    mean(nom_data[1, :]),    #Mean Prey (x)
+    maximum(nom_data[2, :]),  #Max Predator (y)
+]
+solve_at_p(p) = solve(remake(prob; p = p), Tsit5())</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">solve_at_p (generic function with 1 method)</code></pre><h2 id="High-Performance-Loss-Function"><a class="docs-heading-anchor" href="#High-Performance-Loss-Function">High-Performance Loss Function</a><a id="High-Performance-Loss-Function-1"></a><a class="docs-heading-anchor-permalink" href="#High-Performance-Loss-Function" title="Permalink"></a></h2><p>We use <code>DiffCache</code> to create a buffer that can safely hold dual numbers. The <code>replace</code> function updates the parameter container without breaking MTK&#39;s structural typing.</p><pre><code class="language-julia hljs">function loss_function(p_active, p_tuple)
+    #Destructure context tuple
+    odeprob, ts, features_target, setter, diffcache, obs_symbols = p_tuple
+
+    ps = parameter_values(odeprob)
+    buffer = get_tmp(diffcache, p_active)
+
+    #Block-copy baseline values safely
+    copyto!(buffer, canonicalize(Tunable(), ps)[1])
+
+    #Type-safe structural parameter container replacement for ForwardDiff
+    ps_updated = replace(Tunable(), ps, buffer)
+
+    #Mutate only our active dual/float optimization array
+    setter(ps_updated, p_active)
+
+    #Fast inferred problem recreation
+    newprob = remake(odeprob; p = ps_updated)
+    sol = solve(newprob, Tsit5(); saveat = ts)
+
+    if sol.retcode != SciMLBase.ReturnCode.Success
+        return eltype(p_active)(1.0e6) #Prevents NaN in Hessian
+    end
+
+    #Track states dynamically without allocations
+    current_data = sol(ts, idxs = obs_symbols)
+
+    #Extract structural feature criteria allocation-free
+    mean_prey = mean(@view current_data[1, :])
+    max_predator = maximum(@view current_data[2, :])
+
+    return sum(abs2, [mean_prey, max_predator] .- features_target)
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">loss_function (generic function with 1 method)</code></pre><h2 id="Build-the-MDC-context"><a class="docs-heading-anchor" href="#Build-the-MDC-context">Build the MDC context</a><a id="Build-the-MDC-context-1"></a><a class="docs-heading-anchor-permalink" href="#Build-the-MDC-context" title="Permalink"></a></h2><pre><code class="language-julia hljs">setter = setp(prob, params_to_optimize)
+getter = getp(prob, params_to_optimize)
+
+raw_ps = parameter_values(prob)
+tunable_vector_prototype = copy(canonicalize(Tunable(), raw_ps)[1])
+x_nominal = getter(prob)
+diffcache = DiffCache(tunable_vector_prototype, Val(length(x_nominal)))
+
+#Package context containing all required structural parameters
+p_tuple = (prob, grid_steps, nom_features, setter, diffcache, target_observables)
+
+#Wrap into global safe closure for direct evaluation
+p_nominal = getter(prob)
+f_wrapped = θ -&gt; loss_function(θ, p_tuple)
+
+#Pre-allocate ForwardDiff configuration for non-allocating gradient evaluations
+cfg = ForwardDiff.GradientConfig(f_wrapped, p_nominal, ForwardDiff.Chunk(p_nominal))
+
+#Non-allocating, in-place gradient function required by MinimallyDisruptiveCurves
+grad_wrapped! = function (g, θ)
+    return ForwardDiff.gradient!(g, f_wrapped, θ, cfg)
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">#9 (generic function with 1 method)</code></pre><h2 id="MDC-Generation-Pipeline"><a class="docs-heading-anchor" href="#MDC-Generation-Pipeline">MDC Generation Pipeline</a><a id="MDC-Generation-Pipeline-1"></a><a class="docs-heading-anchor-permalink" href="#MDC-Generation-Pipeline" title="Permalink"></a></h2><pre><code class="language-julia hljs">println(&quot;--- Setting up MTK Lotka-Volterra MDC System ---&quot;)
+
+#Compute local curvature Hessian matrix manually
+hess0 = ForwardDiff.hessian(f_wrapped, p_nominal)
+eigen_decomposition = eigen(Symmetric(hess0))
+
+#Extract selected eigenvector corresponding to initial curve direction
+init_dir = eigen_decomposition.vectors[:, EXPLORATION_DIR]
+
+#Extract clean names
+param_names = params_to_optimize .|&gt; Symbol
+
+#Pass BOTH the objective and its in-place gradient function into CostFunction
+base_cost = CostFunction(f_wrapped, grad_wrapped!)
+
+pipeline = TransformChain()
+final_cost = TransformedCost(base_cost, pipeline)
+
+x_nominal_transformed = MinimallyDisruptiveCurves.inverse(pipeline, p_nominal)
+hess0_trans = ForwardDiff.hessian(θ -&gt; final_cost(θ), x_nominal_transformed)
+eigen_trans = eigen(Symmetric(hess0_trans))
+init_dir_trans = eigen_trans.vectors[:, EXPLORATION_DIR]
+
+#Build MDC system
+mdc_sys = MDCProblem(
+    final_cost,
+    x_nominal_transformed,
+    init_dir_trans,
+    10.0;
+    names = param_names
+)
+
+stabiliser = mdc_momentum_readjustment(mdc_sys; tol = 1.0e-3)
+my_pipeline = CallbackSet(stabiliser)
+
+println(&quot;Launching MDC...&quot;)
+@time mdc_curves = MDCSolve(mdc_sys, span = MDCSpan(-3.0, 10.0); callback = my_pipeline)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Minimally Disruptive Curve (MDCSolution)
+====================================
+  • Parameter Dimensions : 4
+  • Explored Span        : [-3.0 ↔ 10.0] (Arc length)
+  • Initial Cost (C₀)    : 0.0
+  • Total Energy (H)     : 10.0
+  • Max Parameter Shifts :
+      α                   : [1.573 ↔ 10.449]
+      β                   : [0.943 ↔ 5.028]
+      γ                   : [1.026 ↔ 1.52]
+      δ                   : [2.895 ↔ 4.215]
+</code></pre><h2 id="Animation-Pipeline-Integration"><a class="docs-heading-anchor" href="#Animation-Pipeline-Integration">Animation Pipeline Integration</a><a id="Animation-Pipeline-Integration-1"></a><a class="docs-heading-anchor-permalink" href="#Animation-Pipeline-Integration" title="Permalink"></a></h2><pre><code class="language-julia hljs">println(&quot;\nPreparing continuous manifold animation...&quot;)
+
+#Define the live sandbox rendering function
+function lotka_volterra_sandbox_painter(θ_physical)
+    plot_t_grid = range(TSPAN_PHYSICAL[1], TSPAN_PHYSICAL[2], length = 200)
+
+    #1. Cleanly update nominal parameters
+    ps_nom_ctx = copy(raw_ps)
+    setter(ps_nom_ctx, p_nominal)
+    prob_nom = remake(prob; p = ps_nom_ctx)
+    sol_nominal = solve(prob_nom, Tsit5(); saveat = plot_t_grid)
+
+    #2. Cleanly update perturbed physical parameters
+    ps_pert_ctx = copy(raw_ps)
+    setter(ps_pert_ctx, θ_physical)
+    prob_pert = remake(prob; p = ps_pert_ctx)
+    sol_perturbed = solve(prob_pert, Tsit5(); saveat = plot_t_grid)
+
+    #3. Extract states
+    states_nom = sol_nominal(plot_t_grid, idxs = target_observables)
+    states_pert = sol_perturbed(plot_t_grid, idxs = target_observables)
+
+    prey_nominal = states_nom[1, :]
+    pred_nominal = states_nom[2, :]
+    prey_perturbed = states_pert[1, :]
+    pred_perturbed = states_pert[2, :]
+
+    mean_prey_nom = mean(prey_nominal)
+    mean_prey_pert = mean(prey_perturbed)
+    max_pred_nom = maximum(pred_nominal)
+    max_pred_pert = maximum(pred_perturbed)
+
+    Plots.plot!(
+        subplot = 1,
+        plot_t_grid, [prey_nominal pred_nominal],
+        linealpha = 0.2, linestyle = :dash,
+        color = [:blue :red], label = false
+    )
+
+    Plots.plot!(
+        subplot = 1,
+        plot_t_grid, [prey_perturbed pred_perturbed],
+        linewidth = 2,
+        color = [:blue :red], label = [&quot;Prey (x)&quot; &quot;Predator (y)&quot;],
+        legend = :topright
+    )
+
+    Plots.hline!([mean_prey_nom], subplot = 1, linestyle = :dot, linealpha = 0.4, color = :blue, label = false)
+    Plots.hline!([max_pred_nom], subplot = 1, linestyle = :dot, linealpha = 0.4, color = :red, label = false)
+
+    Plots.hline!([mean_prey_pert], subplot = 1, linestyle = :dashdot, linewidth = 1.2, color = :darkblue, label = &quot;Mean Prey&quot;)
+    Plots.hline!([max_pred_pert], subplot = 1, linestyle = :dashdot, linewidth = 1.2, color = :darkred, label = &quot;Max Predator&quot;)
+
+    return Plots.plot!(
+        subplot = 1,
+        xlabel = &quot;Time&quot;, ylabel = &quot;Population&quot;,
+        xlims = TSPAN_PHYSICAL,
+        ylims = (0.0, 6.0)
+    )
+end
+
+#Invoke updated linear animation tracking utility function
+lv_animation = MinimallyDisruptiveCurves.animate_mdc(
+    mdc_curves,
+    lotka_volterra_sandbox_painter;
+    fps = 20,
+    density = 150,
+    raw = true
+)
+
+output_path = joinpath(pwd(), &quot;lotka_volterra_mtk_mdc.gif&quot;)
+println(&quot;Rendering frames and saving video to: $output_path&quot;)
+Plots.gif(lv_animation, output_path);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">
+Preparing continuous manifold animation...
+Rendering frames and saving video to: /home/runner/_work/MinimallyDisruptiveCurves.jl/MinimallyDisruptiveCurves.jl/docs/build/examples/lotka_volterra_mtk_mdc.gif
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Saved animation to /home/runner/_work/MinimallyDisruptiveCurves.jl/MinimallyDisruptiveCurves.jl/docs/build/examples/lotka_volterra_mtk_mdc.gif</code></pre><p><img src="../lotka_volterra_mtk_mdc.gif" alt="MTK Lotka Volterra MDC Sweep"/></p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../03_basic_lotka_volterra/">« Basic Lotka-Volterra</a><a class="docs-footer-nextpage" href="../05_nfkb/">NFKB model »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Wednesday 8 July 2026 12:09">Wednesday 8 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

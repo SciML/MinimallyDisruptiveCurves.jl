@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Mass-Spring with Transforms · MinimallyDisruptiveCurves.jl Documentation</title><meta name="title" content="Mass-Spring with Transforms · MinimallyDisruptiveCurves.jl Documentation"/><meta property="og:title" content="Mass-Spring with Transforms · MinimallyDisruptiveCurves.jl Documentation"/><meta property="twitter:title" content="Mass-Spring with Transforms · MinimallyDisruptiveCurves.jl Documentation"/><meta name="description" content="Documentation for MinimallyDisruptiveCurves.jl Documentation."/><meta property="og:description" content="Documentation for MinimallyDisruptiveCurves.jl Documentation."/><meta property="twitter:description" content="Documentation for MinimallyDisruptiveCurves.jl Documentation."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">MinimallyDisruptiveCurves.jl Documentation</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../01_basic_mass_spring/">Basic Mass-Spring</a></li><li class="is-active"><a class="tocitem" href>Mass-Spring with Transforms</a><ul class="internal"><li><a class="tocitem" href="#Simulator"><span>Simulator</span></a></li><li><a class="tocitem" href="#Dynamic-Cost-Function-Factory"><span>Dynamic Cost Function Factory</span></a></li><li><a class="tocitem" href="#Execution-Pipeline"><span>Execution Pipeline</span></a></li><li><a class="tocitem" href="#Wiring-up-the-Transform-Chain"><span>Wiring up the Transform Chain</span></a></li><li><a class="tocitem" href="#Instantiating-the-MDC-System"><span>Instantiating the MDC System</span></a></li><li><a class="tocitem" href="#Verification-and-Analysis"><span>Verification &amp; Analysis</span></a></li><li><a class="tocitem" href="#Animation-Custom-Visualization"><span>Animation Custom Visualization</span></a></li><li><a class="tocitem" href="#Animation"><span>Animation</span></a></li></ul></li><li><a class="tocitem" href="../03_basic_lotka_volterra/">Basic Lotka-Volterra</a></li><li><a class="tocitem" href="../04_lotka_volterra_with_optim/">MTK Lotka-Volterra</a></li><li><a class="tocitem" href="../05_nfkb/">NFKB model</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Mass-Spring with Transforms</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Mass-Spring with Transforms</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SciML/MinimallyDisruptiveCurves.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SciML/MinimallyDisruptiveCurves.jl/blob/master/docs/examples/02_transforming_costs.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><pre><code class="language-julia hljs">ENV[&quot;GKSwstype&quot;] = &quot;100&quot;;</code></pre><h1 id="Mass-Spring-System-with-Transforms"><a class="docs-heading-anchor" href="#Mass-Spring-System-with-Transforms">Mass-Spring System with Transforms</a><a id="Mass-Spring-System-with-Transforms-1"></a><a class="docs-heading-anchor-permalink" href="#Mass-Spring-System-with-Transforms" title="Permalink"></a></h1><p>This example builds directly on the basic mass-spring system. Here, we introduce <code>TransformChain</code>s to constrain and re-parameterize our search space.</p><p>Specifically, we will: Fix the mass parameter <code>m</code> so it cannot change, using <code>FixedParamsTransform</code>. Explore the damping <code>c</code> and stiffness <code>k</code> parameters in log-space using <code>LogAbsTransform</code>, Meaning the MDC will trace through <em>relative</em> changes rather than absolute changes.</p><pre><code class="language-julia hljs">#note
+#As in the previous example, we use a lucky guess for the initial direction.
+
+using LinearAlgebra, OrdinaryDiffEq, MinimallyDisruptiveCurves, Plots
+using ForwardDiff</code></pre><h2 id="Simulator"><a class="docs-heading-anchor" href="#Simulator">Simulator</a><a id="Simulator-1"></a><a class="docs-heading-anchor-permalink" href="#Simulator" title="Permalink"></a></h2><p>Standard 2D mass-spring-damper vector field: <span>$\dot{x} = v$</span>, <span>$\dot{v} = -(c/m)v - (k/m)x$</span>.</p><pre><code class="language-julia hljs">function mass_spring_dynamics!(du, u, p, t)
+    m, c, k = p
+    position, velocity = u[1], u[2]
+
+    du[1] = velocity
+    du[2] = -(c / m) * velocity - (k / m) * position
+    return nothing
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">mass_spring_dynamics! (generic function with 1 method)</code></pre><h2 id="Dynamic-Cost-Function-Factory"><a class="docs-heading-anchor" href="#Dynamic-Cost-Function-Factory">Dynamic Cost Function Factory</a><a id="Dynamic-Cost-Function-Factory-1"></a><a class="docs-heading-anchor-permalink" href="#Dynamic-Cost-Function-Factory" title="Permalink"></a></h2><p>We reuse the MSE cost function factory. It pre-computes a reference trajectory using <code>θ_nominal</code> and evaluates the MSE deviation for any test parameter vector <code>θ</code>.</p><pre><code class="language-julia hljs">function make_mse_cost_function(θ_nominal; u0 = [1.0, 0.0], tspan = (0.0, 10.0), dt = 0.1)
+    #1. Generate the immutable reference trajectory data
+    prob_nominal = ODEProblem(mass_spring_dynamics!, u0, tspan, θ_nominal)
+    sol_nominal = solve(prob_nominal, Tsit5(), saveat = dt)
+
+    target_times = sol_nominal.t
+    target_positions = [sol[1] for sol in sol_nominal.u]
+
+    #2. Define the objective function closure (f)
+    function f(θ)
+        if any(θ .&lt;= 1.0e-3)
+            return 100.0 + sum(abs2, min.(zero(eltype(θ)), θ))
+        end
+
+        prob = ODEProblem(mass_spring_dynamics!, u0, tspan, θ)
+        sol = solve(prob, Tsit5(), saveat = target_times)
+
+        current_positions = [s[1] for s in sol.u]
+        return sum(abs2, current_positions .- target_positions) / length(target_times)
+    end
+
+    #3. Define the exact Automatic Differentiation gradient closure (grad!)
+    function grad!(g, θ)
+        ForwardDiff.gradient!(g, f, θ)
+        return g
+    end
+
+    return CostFunction(f, grad!)
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">make_mse_cost_function (generic function with 1 method)</code></pre><h2 id="Execution-Pipeline"><a class="docs-heading-anchor" href="#Execution-Pipeline">Execution Pipeline</a><a id="Execution-Pipeline-1"></a><a class="docs-heading-anchor-permalink" href="#Execution-Pipeline" title="Permalink"></a></h2><p>Let&#39;s define our base physical system nominal profile.</p><pre><code class="language-julia hljs">θ_nominal = [1.0, 0.5, 5.0]     #m = 1.0, c = 0.5, k = 5.0
+u0_physical = [1.0, 0.0]
+tspan_physical = (0.0, 10.0)
+
+core_cost = make_mse_cost_function(θ_nominal, u0 = u0_physical, tspan = tspan_physical)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">CostFunction{Main.var&quot;#f#6&quot;{Vector{Float64}, Tuple{Float64, Float64}, Vector{Float64}, Vector{Float64}}, Main.var&quot;#grad!#9&quot;{Main.var&quot;#f#6&quot;{Vector{Float64}, Tuple{Float64, Float64}, Vector{Float64}, Vector{Float64}}}, Nothing}(Main.var&quot;#f#6&quot;{Vector{Float64}, Tuple{Float64, Float64}, Vector{Float64}, Vector{Float64}}([1.0, 0.0], (0.0, 10.0), [1.0, 0.9755134583699442, 0.904842726590233, 0.7936721967307147, 0.649376884738368, 0.48058024182482734, 0.2966739509413257, 0.10732886393959679, -0.07799393312870152, -0.2504935966407592  …  0.031625811578573276, 0.00891660527691038, -0.013110762248050708, -0.03342631948156288, -0.05113045390720225, -0.06549090180218642, -0.07596419731606183, -0.08223390080044216, -0.08420817226722992, -0.08199595449006322], [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9  …  9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8, 9.9, 10.0]), Main.var&quot;#grad!#9&quot;{Main.var&quot;#f#6&quot;{Vector{Float64}, Tuple{Float64, Float64}, Vector{Float64}, Vector{Float64}}}(Main.var&quot;#f#6&quot;{Vector{Float64}, Tuple{Float64, Float64}, Vector{Float64}, Vector{Float64}}([1.0, 0.0], (0.0, 10.0), [1.0, 0.9755134583699442, 0.904842726590233, 0.7936721967307147, 0.649376884738368, 0.48058024182482734, 0.2966739509413257, 0.10732886393959679, -0.07799393312870152, -0.2504935966407592  …  0.031625811578573276, 0.00891660527691038, -0.013110762248050708, -0.03342631948156288, -0.05113045390720225, -0.06549090180218642, -0.07596419731606183, -0.08223390080044216, -0.08420817226722992, -0.08199595449006322], [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9  …  9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8, 9.9, 10.0])), nothing)</code></pre><h2 id="Wiring-up-the-Transform-Chain"><a class="docs-heading-anchor" href="#Wiring-up-the-Transform-Chain">Wiring up the Transform Chain</a><a id="Wiring-up-the-Transform-Chain-1"></a><a class="docs-heading-anchor-permalink" href="#Wiring-up-the-Transform-Chain" title="Permalink"></a></h2><p>We want our solver to operate on 2 active parameters: <code>[log(c), log(k)]</code>. The chain applies transforms from left to right in the <code>forward</code> direction.</p><ol><li><code>LogAbsTransform()</code>: maps <code>[log(c), log(k)]</code> to <code>[c, k]</code>.</li><li><code>FixedParamsTransform([2, 3], [1.0], 3)</code>: inflates <code>[c, k]</code> to <code>[1.0, c, k]</code> (fixing mass at index 1 to 1.0).</li></ol><pre><code class="language-julia hljs">fix_transform = FixedParamsTransform([2, 3], [1.0], 3)
+chain = TransformChain(LogAbsTransform(), fix_transform)
+
+transformed_cost = TransformedCost(core_cost, chain)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">TransformedCost{CostFunction{Main.var&quot;#f#6&quot;{Vector{Float64}, Tuple{Float64, Float64}, Vector{Float64}, Vector{Float64}}, Main.var&quot;#grad!#9&quot;{Main.var&quot;#f#6&quot;{Vector{Float64}, Tuple{Float64, Float64}, Vector{Float64}, Vector{Float64}}}, Nothing}, TransformChain{Tuple{LogAbsTransform, FixedParamsTransform}}}(CostFunction{Main.var&quot;#f#6&quot;{Vector{Float64}, Tuple{Float64, Float64}, Vector{Float64}, Vector{Float64}}, Main.var&quot;#grad!#9&quot;{Main.var&quot;#f#6&quot;{Vector{Float64}, Tuple{Float64, Float64}, Vector{Float64}, Vector{Float64}}}, Nothing}(Main.var&quot;#f#6&quot;{Vector{Float64}, Tuple{Float64, Float64}, Vector{Float64}, Vector{Float64}}([1.0, 0.0], (0.0, 10.0), [1.0, 0.9755134583699442, 0.904842726590233, 0.7936721967307147, 0.649376884738368, 0.48058024182482734, 0.2966739509413257, 0.10732886393959679, -0.07799393312870152, -0.2504935966407592  …  0.031625811578573276, 0.00891660527691038, -0.013110762248050708, -0.03342631948156288, -0.05113045390720225, -0.06549090180218642, -0.07596419731606183, -0.08223390080044216, -0.08420817226722992, -0.08199595449006322], [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9  …  9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8, 9.9, 10.0]), Main.var&quot;#grad!#9&quot;{Main.var&quot;#f#6&quot;{Vector{Float64}, Tuple{Float64, Float64}, Vector{Float64}, Vector{Float64}}}(Main.var&quot;#f#6&quot;{Vector{Float64}, Tuple{Float64, Float64}, Vector{Float64}, Vector{Float64}}([1.0, 0.0], (0.0, 10.0), [1.0, 0.9755134583699442, 0.904842726590233, 0.7936721967307147, 0.649376884738368, 0.48058024182482734, 0.2966739509413257, 0.10732886393959679, -0.07799393312870152, -0.2504935966407592  …  0.031625811578573276, 0.00891660527691038, -0.013110762248050708, -0.03342631948156288, -0.05113045390720225, -0.06549090180218642, -0.07596419731606183, -0.08223390080044216, -0.08420817226722992, -0.08199595449006322], [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9  …  9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8, 9.9, 10.0])), nothing), TransformChain{Tuple{LogAbsTransform, FixedParamsTransform}}((LogAbsTransform(), FixedParamsTransform([2, 3], [1], [1.0], 3))))</code></pre><h2 id="Instantiating-the-MDC-System"><a class="docs-heading-anchor" href="#Instantiating-the-MDC-System">Instantiating the MDC System</a><a id="Instantiating-the-MDC-System-1"></a><a class="docs-heading-anchor-permalink" href="#Instantiating-the-MDC-System" title="Permalink"></a></h2><p>We must map our 3D nominal physical parameters back into our 2D operational space using the inverse chain.</p><pre><code class="language-julia hljs">θ₀ = MinimallyDisruptiveCurves.inverse(chain, θ_nominal)  #Resolves exactly to 2 elements: [log(0.5), log(5.0)]
+dθ₀ = [1.0, 1.0]                #2-element initial direction (lucky guess again!)
+H = 1.0
+
+sys = MDCProblem(
+    transformed_cost,
+    θ₀,
+    dθ₀,
+    H;
+    names = [:mass, :damping, :stiffness]
+)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">MDCProblem with Parameters: 2, Momentum cap (H): 1.0</code></pre><p>Setup the stability callback and solve</p><pre><code class="language-julia hljs">stabilizer = mdc_momentum_readjustment(sys; tol = 1.0e-3)
+my_pipeline = CallbackSet(stabilizer)
+
+println(&quot;Launching parallel manifold integration...&quot;)
+mdc_curves = MDCSolve(sys, span = MDCSpan(-5.0, 5.0), callback = my_pipeline; mode = :fast)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Minimally Disruptive Curve (MDCSolution)
+====================================
+  • Parameter Dimensions : 2
+  • Explored Span        : [-5.0 ↔ 5.0] (Arc length)
+  • Initial Cost (C₀)    : 0.0
+  • Total Energy (H)     : 1.0
+  • Max Parameter Shifts :
+      log(abs(damping))   : [-0.567 ↔ 2.827]
+      log(abs(stiffness)) : [1.517 ↔ 5.16]
+</code></pre><h2 id="Verification-and-Analysis"><a class="docs-heading-anchor" href="#Verification-and-Analysis">Verification &amp; Analysis</a><a id="Verification-and-Analysis-1"></a><a class="docs-heading-anchor-permalink" href="#Verification-and-Analysis" title="Permalink"></a></h2><p>Let&#39;s map the terminal operational state back to physical units to inspect the results.</p><pre><code class="language-julia hljs">if mdc_curves.positive_sol !== nothing &amp;&amp; mdc_curves.negative_sol !== nothing
+    #Extract the final terminal state coordinates found along the negative integration trace
+    final_operational_state = mdc_curves.negative_sol.u[end]
+    θ_operational_end = final_operational_state[1:length(sys.θ₀)]
+
+    #Map coordinates back to physical units
+    θ_physical_end = forward(chain, θ_operational_end)
+
+    println(&quot;\n--- Subspace Constraint Verification ---&quot;)
+    println(&quot;Initial Physical Configuration: &quot;, round.(θ_nominal, digits = 4))
+    println(&quot;Terminal Physical Configuration: &quot;, round.(θ_physical_end, digits = 4))
+    println(&quot;Did Mass stay completely fixed? &quot;, θ_physical_end[1] == θ_nominal[1] ? &quot;YES (1.0)&quot; : &quot;NO&quot;)
+
+    final_cost = core_cost.f(θ_physical_end)
+    println(&quot;MSE Loss at Path Endpoint: &quot;, round(final_cost, digits = 7))
+else
+    println(&quot;Error: MDC integration failed.&quot;)
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">
+--- Subspace Constraint Verification ---
+Initial Physical Configuration: [1.0, 0.5, 5.0]
+Terminal Physical Configuration: [1.0, 0.567, 4.5574]
+Did Mass stay completely fixed? YES (1.0)
+MSE Loss at Path Endpoint: 0.0080669</code></pre><h2 id="Animation-Custom-Visualization"><a class="docs-heading-anchor" href="#Animation-Custom-Visualization">Animation Custom Visualization</a><a id="Animation-Custom-Visualization-1"></a><a class="docs-heading-anchor-permalink" href="#Animation-Custom-Visualization" title="Permalink"></a></h2><p>We can reuse our animation function, which operates entirely in physical parameter space.</p><pre><code class="language-julia hljs">function animate_system_response(θ_current)
+    u0 = [1.0, 0.0]
+    tspan = (0.0, 10.0)
+    dt = 0.1
+
+    prob_nominal = ODEProblem(mass_spring_dynamics!, u0, tspan, θ_nominal)
+    sol_nominal = solve(prob_nominal, Tsit5(), saveat = dt)
+
+    prob_current = ODEProblem(mass_spring_dynamics!, u0, tspan, θ_current)
+    sol_current = solve(prob_current, Tsit5(), saveat = dt)
+
+    pos_nominal = [u[1] for u in sol_nominal.u]
+    pos_current = [u[1] for u in sol_current.u]
+
+    #Plot the ground-truth nominal response as a static dashed black line
+    Plots.plot!(
+        sol_nominal.t, pos_nominal,
+        subplot = 1,
+        line = (:black, :dash),
+        linewidth = 2,
+        label = &quot;Nominal Target&quot;
+    )
+
+    #Overlay the explored parameter trajectory response in solid blue
+    return Plots.plot!(
+        sol_current.t, pos_current,
+        subplot = 1,
+        color = :blue,
+        linewidth = 2.5,
+        label = &quot;MDC Configuration Response&quot;,
+        xlabel = &quot;Physical Time (s)&quot;,
+        ylabel = &quot;Position (x)&quot;,
+        ylim = (-1.2, 1.2)
+    )
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">animate_system_response (generic function with 1 method)</code></pre><h2 id="Animation"><a class="docs-heading-anchor" href="#Animation">Animation</a><a id="Animation-1"></a><a class="docs-heading-anchor-permalink" href="#Animation" title="Permalink"></a></h2><p>We pass <code>raw = true</code> to <code>animate_mdc</code> so it automatically maps the internal coordinates back to physical units before passing them to our painter function.</p><pre><code class="language-julia hljs">anim = animate_mdc(mdc_curves, animate_system_response; density = 100, fps = 15, raw = true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Plots.Animation(&quot;/home/runner/_work/_temp/jl_rbgKoU&quot;, [&quot;000001.png&quot;, &quot;000002.png&quot;, &quot;000003.png&quot;, &quot;000004.png&quot;, &quot;000005.png&quot;, &quot;000006.png&quot;, &quot;000007.png&quot;, &quot;000008.png&quot;, &quot;000009.png&quot;, &quot;000010.png&quot;  …  &quot;000091.png&quot;, &quot;000092.png&quot;, &quot;000093.png&quot;, &quot;000094.png&quot;, &quot;000095.png&quot;, &quot;000096.png&quot;, &quot;000097.png&quot;, &quot;000098.png&quot;, &quot;000099.png&quot;, &quot;000100.png&quot;])</code></pre><p>Save the gif and suppress text output with a semicolon</p><pre><code class="language-julia hljs">gif(anim, &quot;mass_spring_transforms_mdc_sweep.gif&quot;, fps = 15);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr36"><span class="sgr1">[ Info: </span></span>Saved animation to /home/runner/_work/MinimallyDisruptiveCurves.jl/MinimallyDisruptiveCurves.jl/docs/build/examples/mass_spring_transforms_mdc_sweep.gif</code></pre><p><img src="../mass_spring_transforms_mdc_sweep.gif" alt="Mass Spring MDC Sweep with Transforms"/></p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../01_basic_mass_spring/">« Basic Mass-Spring</a><a class="docs-footer-nextpage" href="../03_basic_lotka_volterra/">Basic Lotka-Volterra »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Wednesday 8 July 2026 12:09">Wednesday 8 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

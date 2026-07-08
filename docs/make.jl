@@ -33,6 +33,12 @@ Literate.markdown(
     documenter = true
 )
 
+Literate.markdown(
+    joinpath(example_input_dir, "05_nfkb.jl"),
+    example_output_dir;
+    documenter = true
+)
+
 
 
 
@@ -55,6 +61,7 @@ makedocs(
             "Mass-Spring with Transforms" => "examples/02_transforming_costs.md",
             "Basic Lotka-Volterra" => "examples/03_basic_lotka_volterra.md",
             "MTK Lotka-Volterra" => "examples/04_lotka_volterra_with_optim.md",
+            "NFKB model" => "examples/05_nfkb.md",
         ]
     ]
 

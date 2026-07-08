@@ -76,7 +76,7 @@ using SafeTestsets
         @test typeof(verbose_cbs) <: Tuple
 
         mdc_curves = MDCSolve(sys, span = MDCSpan(0.0, 0.5), callback = CallbackSet(verbose_cbs...))
-        
+
         @test mdc_curves.positive_sol !== nothing
         @test mdc_curves.positive_sol.retcode != ReturnCode.Failure
     end

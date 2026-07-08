@@ -1,14 +1,14 @@
-ENV["GKSwstype"] = "100"; 
+ENV["GKSwstype"] = "100";
 
 # # Basic Lotka-Volterra System
 #
-# This example introduces a more robust way to initialize the MDC direction. 
-# Instead of making a lucky guess, we compute the local Hessian of the cost 
-# function at the nominal parameters. The eigenvector corresponding to the 
-# smallest eigenvalue gives us the direction of least resistance (the most 
+# This example introduces a more robust way to initialize the MDC direction.
+# Instead of making a lucky guess, we compute the local Hessian of the cost
+# function at the nominal parameters. The eigenvector corresponding to the
+# smallest eigenvalue gives us the direction of least resistance (the most
 # unidentifiable direction).
 #
-# We also move away from matching raw trajectories and instead match structural 
+# We also move away from matching raw trajectories and instead match structural
 # *features* of the system: the mean prey population and the maximum predator population.
 
 using LinearAlgebra, OrdinaryDiffEq, MinimallyDisruptiveCurves, Statistics, Plots, ForwardDiff, LaTeXStrings
@@ -70,7 +70,7 @@ sys = MDCProblem(
     core_cost,
     p_nominal,
     init_dir,
-    1.0;                  
+    1.0;
     names = [:p₁, :p₂, :p₃, :p₄]
 )
 

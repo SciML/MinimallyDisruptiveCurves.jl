@@ -40,19 +40,13 @@ Literate.markdown(
 )
 
 
-
-
-
-
-
-
 # 3. Build the documentation
 makedocs(
     sitename = "MinimallyDisruptiveCurves.jl Documentation",
     modules = [MinimallyDisruptiveCurves],
     warnonly = [:missing_docs],
     format = Documenter.HTML(;
-    prettyurls = get(ENV, "CI", "false") == "true", 
+        prettyurls = get(ENV, "CI", "false") == "true",
     ),
     pages = [
         "Home" => "index.md",
@@ -62,7 +56,7 @@ makedocs(
             "Basic Lotka-Volterra" => "examples/03_basic_lotka_volterra.md",
             "MTK Lotka-Volterra" => "examples/04_lotka_volterra_with_optim.md",
             "NFKB model" => "examples/05_nfkb.md",
-        ]
+        ],
     ]
 
 )

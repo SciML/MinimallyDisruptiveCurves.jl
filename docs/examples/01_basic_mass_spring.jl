@@ -1,13 +1,13 @@
-ENV["GKSwstype"] = "100"; 
+ENV["GKSwstype"] = "100";
 # # Basic Mass-Spring System
 #
-# This example shows how Minimally Disruptive Curves (MDC) finds a structural 
-# unidentifiability in the basic damped harmonic oscillator model (where `m` is mass, 
-# `c` is damping, and `k` is the spring constant). We will see that the trajectory 
+# This example shows how Minimally Disruptive Curves (MDC) finds a structural
+# unidentifiability in the basic damped harmonic oscillator model (where `m` is mass,
+# `c` is damping, and `k` is the spring constant). We will see that the trajectory
 # doesn't vary where the ratios `c/m` and `k/m` remain constant. This is obvious algebraically, as the equations are $\dot{v} = -(c/m)v - (k/m)x$.
 #
 # !!! note
-#     This script does not explore how to initialise a good starting MDC direction. 
+#     This script does not explore how to initialise a good starting MDC direction.
 #     We make a lucky guess here. That's the topic of the next Lotka-Volterra example (and the NFKB example)
 
 using LinearAlgebra, OrdinaryDiffEq, MinimallyDisruptiveCurves, Plots
@@ -26,8 +26,8 @@ function mass_spring_dynamics!(du, u, p, t)
 end
 
 # ## Dynamic Cost Function Factory
-# This factory generates a `CostFunction` instance. It pre-computes a reference 
-# trajectory using `θ_nominal` and evaluates the Mean Squared Error (MSE) deviation for 
+# This factory generates a `CostFunction` instance. It pre-computes a reference
+# trajectory using `θ_nominal` and evaluates the Mean Squared Error (MSE) deviation for
 # any test parameter vector `θ`.
 
 function make_mse_cost_function(θ_nominal; u0 = [1.0, 0.0], tspan = (0.0, 10.0), dt = 0.1)
@@ -107,7 +107,7 @@ final_cost = core_cost.f(θ_explored)
 println("\nMSE Cost Relative to Nominal Trajectory: ", round(final_cost, digits = 7))
 
 # ## Animation Custom Visualization
-# We can define a custom visualization function to pass to `animate_mdc`, 
+# We can define a custom visualization function to pass to `animate_mdc`,
 # which paints directly onto the plot canvas at each frame.
 
 function animate_system_response(θ_current)
@@ -153,4 +153,3 @@ anim = animate_mdc(mdc_curves, animate_system_response; density = 100, fps = 15,
 gif(anim, "mass_spring_mdc_sweep.gif", fps = 15);
 
 #md # ![Mass Spring MDC Sweep](mass_spring_mdc_sweep.gif)
-

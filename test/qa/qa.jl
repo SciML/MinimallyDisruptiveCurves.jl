@@ -94,7 +94,7 @@ end
     end
 
     @testset "Verbose Callbacks - no runtime errors" begin
-        # This will statically catch unbound variables (like the missing N) 
+        # This will statically catch unbound variables (like the missing N)
         # without needing to run a full ODE solve.
         rep = JET.@report_call target_modules = (MinimallyDisruptiveCurves,) mdc_verbose_callbacks(sys, [0.1, 0.2])
         @test isempty(JET.get_reports(rep))

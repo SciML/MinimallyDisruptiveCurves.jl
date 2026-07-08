@@ -1,8 +1,8 @@
 # # Large-Scale Demonstration: NFKB Parameter Identification
-# 
-# This script consolidates the complete workflow of using `MinimallyDisruptiveCurves.jl` 
-# on a complex biological model. We build an NFKB signaling pathway using `ModelingToolkit.jl`, 
-# define a simulation-based cost function, compute sparse sensitivities, and trace 
+#
+# This script consolidates the complete workflow of using `MinimallyDisruptiveCurves.jl`
+# on a complex biological model. We build an NFKB signaling pathway using `ModelingToolkit.jl`,
+# define a simulation-based cost function, compute sparse sensitivities, and trace
 # minimally disruptive curves through the high-dimensional parameter space.
 # We also sparsify the parameters involved in our curves, which we haven't done previously. Curves involving fewer parameters are easier to interpret.
 # The model is taken from: Lipniacki, Tomasz, et al. "Mathematical model of NF-κB regulatory module." Journal of theoretical biology 228.2 (2004): 195-215.
@@ -22,7 +22,7 @@ using SciMLBase
 using LinearAlgebra
 
 # ## 1. Model Definition
-# 
+#
 # We define the NFKB pathway components and connect them to a stimulatory input.
 # The model tracks various cytoplasmic and nuclear species, exposing key observables.
 
@@ -149,8 +149,8 @@ end
 build_nfkb() = NetworkSystem(; name = :env) |> structural_simplify
 
 # ## 2. Setup MTK Network & Base ODE Problem
-# 
-# We instantiate the system, define the time span, and generate the baseline 
+#
+# We instantiate the system, define the time span, and generate the baseline
 # experimental data that will serve as the target for our cost function.
 
 sys = build_nfkb()
@@ -178,9 +178,9 @@ sol_nominal = solve(prob, Tsit5(); saveat = timesteps)
 truth_data = Array(sol_nominal(timesteps, idxs = target_observables))
 
 # ## 4. High-Performance Loss Function
-# 
-# We define an allocation-friendly loss function that uses PreallocationTools 
-# and SciMLStructures to efficiently swap out parameter values and propagate 
+#
+# We define an allocation-friendly loss function that uses PreallocationTools
+# and SciMLStructures to efficiently swap out parameter values and propagate
 # Dual numbers through the ODE solver for automatic differentiation.
 
 function loss_function(x, p_tuple)
@@ -214,9 +214,9 @@ diffcache = DiffCache(tunable_vector_prototype)
 p_tuple = (prob, timesteps, truth_data, setter, diffcache, target_observables)
 
 # ## 5. Evaluation and Gradient Verification
-# 
-# We set up the ForwardDiff configurations, wrap the cost and gradient into the 
-# `CostFunction` structure, and apply a `LogAbsTransform` to explore parameter 
+#
+# We set up the ForwardDiff configurations, wrap the cost and gradient into the
+# `CostFunction` structure, and apply a `LogAbsTransform` to explore parameter
 # sensitivities in relative (log) space.
 
 println("\n--- Running Scaled Loss Function Evaluation ---")
@@ -239,7 +239,7 @@ final_cost = TransformedCost(base_cost, pipeline)
 x_nominal_transformed = MinimallyDisruptiveCurves.inverse(pipeline, x_nominal)
 
 # ## 6. Sparse Eigenbasis and MDC Execution
-# 
+#
 # We compute the Hessian at the nominal point to determine the initially insensitive directions.
 # Rather than initialising along the raw eigenvectors (which are pretty dense, involving lots of nonzero parameter directions), we sparsity
 # The λ parameter is the degree of sparsification. Higher λ means sparser initial directions
@@ -269,19 +269,19 @@ for i in 1:5
 end
 
 # ## 7. Visualizing the MDC Trajectories
-# 
+#
 # For each curve, we create a figure with  two subplots: the parameter trajectories on top, and the cost trajectory on the bottom.
 # We use the built-in `cost_trajectory` accessor to evaluate the cost along a uniform grid.
 # We only show the 5 biggest moving parameters to avoid crowding
 
-t_grid = range(-10.0, 10.0, length=200)
+t_grid = range(-10.0, 10.0, length = 200)
 
 
 function build_plot(i)
-    p_params = plot(mdc_curves[i], max_lines=5)
+    p_params = plot(mdc_curves[i], max_lines = 5)
     cost_vals = cost_trajectory(mdc_curves[i], t_grid)
-    p_cost = plot(t_grid, cost_vals, label="Cost", xlabel="Arc Length", ylabel="Cost", color=:black)
-    return plot(p_params, p_cost, layout=(2, 1), size=(800, 600))
+    p_cost = plot(t_grid, cost_vals, label = "Cost", xlabel = "Arc Length", ylabel = "Cost", color = :black)
+    return plot(p_params, p_cost, layout = (2, 1), size = (800, 600))
 end;
 
 # ## Trajectory 1
@@ -294,6 +294,3 @@ build_plot(3)
 build_plot(4)
 # ## Trajectory 5
 build_plot(5)
-
-
-

@@ -1,13 +1,13 @@
-ENV["GKSwstype"] = "100" 
+ENV["GKSwstype"] = "100"
 
 # # MTK Lotka-Volterra with Optimized Gradients
 #
-# This example does the same Lotka-Volterra model, but builds it with 
-# `ModelingToolkit` (MTK). MTK allows us to symbolically define our equations 
+# This example does the same Lotka-Volterra model, but builds it with
+# `ModelingToolkit` (MTK). MTK allows us to symbolically define our equations
 # and automatically generate efficient, type-stable code.
 #
-# To ensure our gradients remain allocation-free and fully compatible with 
-# ForwardDiff dual numbers, we introduce `PreallocationTools` and `DiffCache`. 
+# To ensure our gradients remain allocation-free and fully compatible with
+# ForwardDiff dual numbers, we introduce `PreallocationTools` and `DiffCache`.
 # This is the recommended pattern for performance-critical, simulation-based costs.
 
 using ModelingToolkit, Plots
@@ -82,8 +82,8 @@ const nom_features = [
 solve_at_p(p) = solve(remake(prob; p = p), Tsit5())
 
 # ## High-Performance Loss Function
-# We use `DiffCache` to create a buffer that can safely hold dual numbers. 
-# The `replace` function updates the parameter container without breaking 
+# We use `DiffCache` to create a buffer that can safely hold dual numbers.
+# The `replace` function updates the parameter container without breaking
 # MTK's structural typing.
 
 function loss_function(p_active, p_tuple)

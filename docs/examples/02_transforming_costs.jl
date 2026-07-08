@@ -1,16 +1,16 @@
 ENV["GKSwstype"] = "100";
 # # Mass-Spring System with Transforms
 #
-# This example builds directly on the basic mass-spring system. Here, we introduce 
-# `TransformChain`s to constrain and re-parameterize our search space. 
+# This example builds directly on the basic mass-spring system. Here, we introduce
+# `TransformChain`s to constrain and re-parameterize our search space.
 #
 # Specifically, we will:
 # Fix the mass parameter `m` so it cannot change, using `FixedParamsTransform`.
-# Explore the damping `c` and stiffness `k` parameters in log-space using `LogAbsTransform`, 
+# Explore the damping `c` and stiffness `k` parameters in log-space using `LogAbsTransform`,
 # Meaning the MDC will trace through *relative* changes rather than absolute changes.
 #
 #note
-#As in the previous example, we use a lucky guess for the initial direction. 
+#As in the previous example, we use a lucky guess for the initial direction.
 
 using LinearAlgebra, OrdinaryDiffEq, MinimallyDisruptiveCurves, Plots
 using ForwardDiff
@@ -28,7 +28,7 @@ function mass_spring_dynamics!(du, u, p, t)
 end
 
 # ## Dynamic Cost Function Factory
-# We reuse the MSE cost function factory. It pre-computes a reference trajectory 
+# We reuse the MSE cost function factory. It pre-computes a reference trajectory
 # using `θ_nominal` and evaluates the MSE deviation for any test parameter vector `θ`.
 
 function make_mse_cost_function(θ_nominal; u0 = [1.0, 0.0], tspan = (0.0, 10.0), dt = 0.1)
@@ -82,12 +82,12 @@ chain = TransformChain(LogAbsTransform(), fix_transform)
 transformed_cost = TransformedCost(core_cost, chain)
 
 # ## Instantiating the MDC System
-# We must map our 3D nominal physical parameters back into our 2D operational space 
+# We must map our 3D nominal physical parameters back into our 2D operational space
 # using the inverse chain.
 
 θ₀ = MinimallyDisruptiveCurves.inverse(chain, θ_nominal)  #Resolves exactly to 2 elements: [log(0.5), log(5.0)]
 dθ₀ = [1.0, 1.0]                #2-element initial direction (lucky guess again!)
-H = 1.0                         
+H = 1.0
 
 sys = MDCProblem(
     transformed_cost,

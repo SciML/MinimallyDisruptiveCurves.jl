@@ -216,13 +216,12 @@ end
     init_ts = Base.front(ts)
     init_buffers = Base.front(buffers)
 
-    # Reuse the previous layer's output buffer to store the gradient, 
+    # Reuse the previous layer's output buffer to store the gradient,
     # since the input dimension of `t` matches the output dimension of the previous layer.
     # If it's the first layer, we use `g_final` directly, which has the correct initial dimension.
     g_in = isempty(init_buffers) ? g_final : last(init_buffers)
-    
+
     pullback!(t, g_in, g_out, y, y)
 
     return _pullback_chain!(init_ts, g_in, init_buffers, g_final)
 end
-

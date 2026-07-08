@@ -1,3 +1,4 @@
+using SciMLTesting
 using JET
 using MinimallyDisruptiveCurves
 using Test
@@ -106,3 +107,7 @@ end
         @test isempty(JET.get_reports(rep))
     end
 end
+run_qa(
+    MinimallyDisruptiveCurves;
+    explicit_imports = true,
+)

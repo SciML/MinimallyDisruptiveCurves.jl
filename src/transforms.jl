@@ -1,5 +1,14 @@
+# Type-stable tuple helpers mirroring the (non-public) Base.front / Base.tail:
+# _mdc_front drops the last element, _mdc_tail drops the first.
+@inline _mdc_tail(t::Tuple) = _mdc_argtail(t...)
+@inline _mdc_argtail(_, rest...) = rest
+
+@inline _mdc_front(t::Tuple) = _mdc_front_impl(t...)
+@inline _mdc_front_impl(v) = ()
+@inline _mdc_front_impl(v, t...) = (v, _mdc_front_impl(t...)...)
+
 """
-   Abstract type for transforms that can be chained and applied to a user-supplied cost function inside a TransformChain 
+   Abstract type for transforms that can be chained and applied to a user-supplied cost function inside a TransformChain
 """
 abstract type AbstractTransform end
 
@@ -32,7 +41,7 @@ end
 
 @inline function _pullback_recursive(ts::Tuple, g_out, y)
     # Split into the last element and all preceding elements
-    init = Base.front(ts)
+    init = _mdc_front(ts)
     last_t = Base.last(ts)
 
     # Compute the input parameter 'x' for the last layer
@@ -200,7 +209,7 @@ end
 @inline function _forward_chain!(ts::Tuple, buffers::Tuple, x)
     out = first(buffers)
     forward!(out, first(ts), x)
-    return _forward_chain!(Base.tail(ts), Base.tail(buffers), out)
+    return _forward_chain!(_mdc_tail(ts), _mdc_tail(buffers), out)
 end
 
 # In-place pullback for the chain (recursive for type stability)
@@ -213,8 +222,8 @@ end
 @inline function _pullback_chain!(ts::Tuple, g_out, buffers::Tuple, g_final)
     t = last(ts)
     y = last(buffers)
-    init_ts = Base.front(ts)
-    init_buffers = Base.front(buffers)
+    init_ts = _mdc_front(ts)
+    init_buffers = _mdc_front(buffers)
 
     # Reuse the previous layer's output buffer to store the gradient,
     # since the input dimension of `t` matches the output dimension of the previous layer.

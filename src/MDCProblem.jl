@@ -9,7 +9,7 @@ end
 @inline _generate_fwd_caches(::Tuple{}, θ₀) = ()
 @inline function _generate_fwd_caches(ts::Tuple, θ₀)
     t = first(ts)
-    rest = Base.tail(ts)
+    rest = _mdc_tail(ts)
     out = forward(t, θ₀)
     return (similar(out), _generate_fwd_caches(rest, out)...)
 end

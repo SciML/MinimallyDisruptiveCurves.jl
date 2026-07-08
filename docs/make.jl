@@ -61,7 +61,6 @@ makedocs(
 
 )
 deploydocs(;
-    repo="github.com/SciML/MinimallyDisruptiveCurves.jl",
-    devbranch="master",
+    repo = "github.com/SciML/MinimallyDisruptiveCurves.jl",
+    devbranch = "master",
 )
-

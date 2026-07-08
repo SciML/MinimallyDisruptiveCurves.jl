@@ -16,8 +16,10 @@ FixedParamsTransform
 CostFunction
 TransformedCost
 MDCProblem
-ODEProblem
 MDCSpan
+MinimallyDisruptiveCurves.MDCSolution
+MinimallyDisruptiveCurves.vectorfield
+MinimallyDisruptiveCurves.initialise_lambda
 mdc_safety_callback
 mdc_bounds_callback
 mdc_verbose_callbacks

@@ -340,6 +340,7 @@ Returns a Tuple of PresetTimeCallbacks for logging the path arc-length and
 Hamiltonian energy drift (residual).
 """
 function mdc_verbose_callbacks(sys::MDCProblem, timepoints; is_negative = false)
+    N = length(sys.θ₀)
     t_points = is_negative ? -abs.(collect(timepoints)) : abs.(collect(timepoints))
 
     distance_cb = PresetTimeCallback(

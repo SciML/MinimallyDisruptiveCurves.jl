@@ -214,20 +214,23 @@ end
 
 # In-place pullback for the chain (recursive for type stability)
 function pullback!(tc::TransformChain, g_final, g_out, buffers)
-    current_g = _pullback_chain!(tc.ts, g_out, buffers)
-    g_final .= current_g
-    return g_final
+    # Pass g_final down so the last layer pulls back directly into the final gradient buffer
+    return _pullback_chain!(tc.ts, g_out, buffers, g_final)
 end
 
-@inline _pullback_chain!(::Tuple{}, g_out, ::Tuple{}) = g_out
-@inline function _pullback_chain!(ts::Tuple, g_out, buffers::Tuple)
+@inline _pullback_chain!(::Tuple{}, g_out, ::Tuple{}, g_final) = (g_final .= g_out; g_final)
+@inline function _pullback_chain!(ts::Tuple, g_out, buffers::Tuple, g_final)
     t = last(ts)
     y = last(buffers)
     init_ts = _mdc_front(ts)
     init_buffers = _mdc_front(buffers)
 
-    g_in = y # Reuse y as buffer for g_in
+    # Reuse the previous layer's output buffer to store the gradient,
+    # since the input dimension of `t` matches the output dimension of the previous layer.
+    # If it's the first layer, we use `g_final` directly, which has the correct initial dimension.
+    g_in = isempty(init_buffers) ? g_final : last(init_buffers)
+
     pullback!(t, g_in, g_out, y, y)
 
-    return _pullback_chain!(init_ts, g_in, init_buffers)
+    return _pullback_chain!(init_ts, g_in, init_buffers, g_final)
 end

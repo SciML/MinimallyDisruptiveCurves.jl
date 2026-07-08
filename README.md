@@ -1,5 +1,11 @@
 # MinimallyDisruptiveCurves
 
+![CI](https://github.com/SciML/MinimallyDisruptiveCurves.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/SciML/MinimallyDisruptiveCurves.jl/actions/workflows/CI.yml)
+[![Documentation](https://github.com/SciML/MinimallyDisruptiveCurves.jl/actions/workflows/Documentation.yml/badge.svg)](https://SciML.github.io/MinimallyDisruptiveCurves.jl)
+[![Codecov](https://codecov.io/gh/SciML/MinimallyDisruptiveCurves.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/SciML/MinimallyDisruptiveCurves.jl)
+[![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blue)](https://github.com/SciML/ColPrac)
+[![PkgEval](https://juliaci.github.io/NanosoldierReports/pkgevals/by_name/M/MinimallyDisruptiveCurves.svg)](https://juliaci.github.io/NanosoldierReports/pkgevals/by_name/M/MinimallyDisruptiveCurves/)
+
 This is a toolbox implementing the algorithm introduced in [1]. **Documentation, examples, and user guide are found [here](https://dhruva2.github.io/MinimallyDisruptiveCurves.docs/).**
 
 A Python version using Diffrax and Jax is [here](https://pypi.org/project/minimally-disruptive-curves/). It's less tested and necessarily uses a slightly worse curve evolution algorithm due to more limited callback functionalities in the Python ODE solvers.

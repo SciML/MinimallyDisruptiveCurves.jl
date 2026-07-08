@@ -62,4 +62,23 @@ using SafeTestsets
         final_mass = mdc_curves.positive_sol.u[end][1]
         @test final_mass > 0.0
     end
+    @testset "Verbose Callback Execution" begin
+        # Reusing the same setup from the Boundary Guard test
+        θ_nominal = [1.0, 0.5, 5.0]
+        dθ = [0.1, 0.0, 0.0]
+        H = 10.0
+
+        core_cost = make_callback_cost(θ_nominal)
+        sys = MDCProblem(TransformedCost(core_cost, TransformChain()), θ_nominal, dθ, H; names = [:mass, :damping, :stiffness])
+
+        # Construct the verbose callbacks
+        verbose_cbs = mdc_verbose_callbacks(sys, [0.1, 0.2])
+        @test typeof(verbose_cbs) <: Tuple
+
+        mdc_curves = MDCSolve(sys, span = MDCSpan(0.0, 0.5), callback = CallbackSet(verbose_cbs...))
+
+        @test mdc_curves.positive_sol !== nothing
+        @test mdc_curves.positive_sol.retcode != ReturnCode.Failure
+    end
+
 end

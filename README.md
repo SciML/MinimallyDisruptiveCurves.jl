@@ -1,8 +1,8 @@
 # MinimallyDisruptiveCurves
 
-![CI](https://github.com/SciML/MinimallyDisruptiveCurves.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/SciML/MinimallyDisruptiveCurves.jl/actions/workflows/CI.yml)
+[![Tests](https://github.com/SciML/MinimallyDisruptiveCurves.jl/actions/workflows/Tests.yml/badge.svg)](https://github.com/SciML/MinimallyDisruptiveCurves.jl/actions/workflows/Tests.yml)
 [![Documentation](https://github.com/SciML/MinimallyDisruptiveCurves.jl/actions/workflows/Documentation.yml/badge.svg)](https://SciML.github.io/MinimallyDisruptiveCurves.jl)
-[![Codecov](https://codecov.io/gh/SciML/MinimallyDisruptiveCurves.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/SciML/MinimallyDisruptiveCurves.jl)
+[![Codecov](https://codecov.io/gh/SciML/MinimallyDisruptiveCurves.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/SciML/MinimallyDisruptiveCurves.jl)
 [![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blue)](https://github.com/SciML/ColPrac)
 [![PkgEval](https://juliaci.github.io/NanosoldierReports/pkgevals/by_name/M/MinimallyDisruptiveCurves.svg)](https://juliaci.github.io/NanosoldierReports/pkgevals/by_name/M/MinimallyDisruptiveCurves/)
 

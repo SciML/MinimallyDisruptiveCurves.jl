@@ -28,3 +28,7 @@ mdc_momentum_readjustment
 sparse_init_dir
 sparse_eigenbasis
 ```
+
+```@autodocs; canonical=false
+Modules = [MinimallyDisruptiveCurves]
+```

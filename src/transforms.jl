@@ -89,7 +89,7 @@ function transform_names(tc::TransformChain{Tuple{}}, names::Vector{Symbol})
 end
 
 # ====================================================================
-# --- Bais Transforms ---
+# --- Basic Transforms ---
 # ====================================================================
 
 """

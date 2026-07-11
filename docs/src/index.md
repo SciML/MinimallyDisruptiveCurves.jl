@@ -29,6 +29,6 @@ sparse_init_dir
 sparse_eigenbasis
 ```
 
-```@autodocs
+```@autodocs; canonical=false
 Modules = [MinimallyDisruptiveCurves]
 ```

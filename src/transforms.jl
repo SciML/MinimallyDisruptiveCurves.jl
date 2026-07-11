@@ -21,6 +21,11 @@ struct TransformChain{T <: Tuple} <: AbstractTransform
 end
 TransformChain(ts::AbstractTransform...) = TransformChain(ts)
 
+"""
+    forward(transform, x)
+
+Map parameters from transformed coordinates to physical coordinates.
+"""
 function forward(tc::TransformChain, x)
     for t in tc.ts
         x = forward(t, x)
@@ -28,6 +33,11 @@ function forward(tc::TransformChain, x)
     return x
 end
 
+"""
+    inverse(transform, y)
+
+Map parameters from physical coordinates back to transformed coordinates.
+"""
 function inverse(tc::TransformChain, y)
     for i in length(tc.ts):-1:1
         y = inverse(tc.ts[i], y)
@@ -35,6 +45,11 @@ function inverse(tc::TransformChain, y)
     return y
 end
 
+"""
+    pullback!(transform, g_in, g_out, x, y)
+
+Pull a gradient in physical coordinates back through `transform`.
+"""
 function pullback!(tc::TransformChain, g_initial, y_final)
     return _pullback_recursive(tc.ts, g_initial, y_final)
 end
@@ -183,6 +198,12 @@ end
 # ====================================================================
 # --- Add in-place forward methods for each transform ---
 # ====================================================================
+"""
+    forward!(out, transform, x)
+    forward!(chain, buffers, x)
+
+In-place form of [`forward`](@ref), using caller-provided output storage.
+"""
 function forward!(out, t::ScaleTransform, x)
     @. out = x * t.w
     return out

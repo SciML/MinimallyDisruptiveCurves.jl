@@ -14,6 +14,7 @@ include("costInterface.jl")
 include("MDCProblem.jl")
 include("plotting_utilities.jl")
 include("utilities.jl")
+include("callbacks.jl")
 
 import Base.show
 
@@ -24,7 +25,8 @@ export forward!, pullback!, generate_fwd_caches
 
 
 export mdc_safety_callback, mdc_bounds_callback, mdc_verbose_callbacks
-export mdc_dHdu_residual, mdc_momentum_readjustment
+export mdc_dHdu_residual, mdc_momentum_readjustment, mdc_continuous_momentum_readjustment, PIController
+
 
 
 """

@@ -15,6 +15,7 @@ import ModelingToolkit.D_nounits
 import ModelingToolkit: SymbolicT
 using Printf
 using Statistics
+using Revise
 using MinimallyDisruptiveCurves
 
 
@@ -177,6 +178,11 @@ mdc_sys = MDCProblem(
 
 # Attach conservation stabilization callback routine to mitigate integration drift
 stabiliser = mdc_momentum_readjustment(mdc_sys; tol = 1.0e-3)
+
+# Replace the above stabiliser with the two lines below to use PI controlled momentum
+# pi_controller = PIController(0.3, 1e-4)
+# stabiliser = mdc_continuous_momentum_readjustment(mdc_sys, pi_controller)
+
 my_pipeline = CallbackSet(stabiliser)
 
 println("Launching MDC...")

@@ -27,6 +27,11 @@ export mdc_safety_callback, mdc_bounds_callback, mdc_verbose_callbacks
 export mdc_dHdu_residual, mdc_momentum_readjustment
 
 
+"""
+    animate_mdc(args...; kwargs...)
+
+Plotting extension hook for animations of minimally disruptive curves.
+"""
 function animate_mdc end
 export animate_mdc
 

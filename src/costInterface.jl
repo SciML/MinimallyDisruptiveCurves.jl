@@ -1,3 +1,8 @@
+"""
+    AbstractCost
+
+Abstract interface for scalar cost functions used by minimally disruptive curves.
+"""
 abstract type AbstractCost end
 
 # ====================================================================
@@ -119,9 +124,20 @@ end
 
 
 value(c::CostFunction, θ) = c.f(θ)
+
+"""
+    gradient!(c, g, θ)
+
+Write the gradient of cost `c` at parameters `θ` into `g` and return `g`.
+"""
 gradient!(c::CostFunction, g, θ) = c.grad!(g, θ)
 
 # Generic fallback for any AbstractCost (user-defined costs that aren't CostFunction)
+"""
+    value_and_gradient!(c, g, θ)
+
+Write the gradient of cost `c` at `θ` into `g` and return the scalar cost value.
+"""
 function value_and_gradient!(c::AbstractCost, g, z)
     gradient!(c, g, z)
     return value(c, z)

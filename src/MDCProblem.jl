@@ -2,6 +2,11 @@
 # --- Core MDC Structs ---
 # ====================================================================
 
+"""
+    generate_fwd_caches(chain, θ₀)
+
+Allocate reusable buffers for in-place forward transforms through `chain`.
+"""
 function generate_fwd_caches(chain::TransformChain, θ₀)
     return _generate_fwd_caches(chain.ts, θ₀)
 end
@@ -489,6 +494,11 @@ function (curve::MDCSolution)(t::Real; type = :all)
     end
 end
 
+"""
+    cost_trajectory(curve[, ts])
+
+Evaluate the curve's cost along the supplied time grid, or along saved solution times.
+"""
 function cost_trajectory(curve::MDCSolution, ts::AbstractVector)
     cost = curve.spec.cost
     return [cost(curve(t; type = :parameters)) for t in ts]

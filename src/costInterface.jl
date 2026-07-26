@@ -1,7 +1,35 @@
 """
     AbstractCost
 
-Abstract interface for scalar cost functions used by minimally disruptive curves.
+Abstract interface for scalar cost functions used by minimally disruptive
+curves.
+
+To define a custom cost, subtype `AbstractCost` and extend the two public
+generic functions `value` and `gradient!` in this module. The default
+`value_and_gradient!` implementation composes those methods.
+
+# Required Methods
+- `value(cost, z)::Number`: return the scalar cost at physical parameters `z`.
+- `gradient!(cost, g, z)`: overwrite `g` with the gradient with respect to
+  `z`, then return `g`.
+
+`z` must be accepted as an `AbstractVector`-like parameter container. `g`
+must have the same length as `z`; implementations may mutate only `g` and
+their own internal caches. Do not mutate `z`. Implement
+`value_and_gradient!` only when evaluating value and gradient together can
+reuse work.
+
+# Example
+```julia
+struct SquaredDistance <: AbstractCost
+    center::Vector{Float64}
+end
+MinimallyDisruptiveCurves.value(cost::SquaredDistance, z) = sum(abs2, z .- cost.center) / 2
+function MinimallyDisruptiveCurves.gradient!(cost::SquaredDistance, g, z)
+    @. g = z - cost.center
+    return g
+end
+```
 """
 abstract type AbstractCost end
 
@@ -17,6 +45,13 @@ abstract type AbstractCost end
 
 Wrap a user-supplied cost function (and its gradient) into a callable struct
 for use inside a `TransformedCost` and ultimately an `MDCProblem`.
+
+# Fields
+- `f`: value function with signature `f(θ)::Number`.
+- `grad!`: gradient function with signature `grad!(g, θ)` that overwrites and
+  returns `g`.
+- `fg`: optional combined function with signature `fg(g, θ)::Number`. It is
+  `nothing` when no combined implementation is supplied.
 
 # Constructors
 
@@ -123,12 +158,47 @@ end
 # (no extra constructor needed — the default struct constructor handles this)
 
 
+"""
+    value(cost, z) -> Number
+
+Evaluate the scalar value of an [`AbstractCost`](@ref) at physical parameters
+`z`.
+
+# Arguments
+- `cost::AbstractCost`: cost implementation.
+- `z`: physical-coordinate parameter vector. It is never mutated.
+
+Custom `AbstractCost` implementations must extend this generic together with
+[`gradient!`](@ref). For an allocation-conscious combined evaluation, call
+[`value_and_gradient!`](@ref) instead.
+
+# Example
+```julia
+cost = CostFunction(z -> sum(abs2, z), (g, z) -> (g .= 2 .* z))
+value(cost, [1.0, 2.0])
+```
+"""
 value(c::CostFunction, θ) = c.f(θ)
 
 """
     gradient!(c, g, θ)
 
-Write the gradient of cost `c` at parameters `θ` into `g` and return `g`.
+Overwrite `g` with the gradient of `cost` at physical parameters `z` and
+return `g`.
+
+# Arguments
+- `cost::AbstractCost`: cost implementation.
+- `g`: preallocated output buffer with one entry per entry of `z`.
+- `z`: physical-coordinate parameter vector. It is not mutated.
+
+Custom `AbstractCost` implementations must extend this generic and return the
+same `g` object after overwriting it.
+
+# Example
+```julia
+cost = CostFunction(z -> sum(abs2, z), (g, z) -> (g .= 2 .* z))
+gradient!(cost, zeros(2), [1.0, 2.0])
+```
 """
 gradient!(c::CostFunction, g, θ) = c.grad!(g, θ)
 
@@ -136,7 +206,23 @@ gradient!(c::CostFunction, g, θ) = c.grad!(g, θ)
 """
     value_and_gradient!(c, g, θ)
 
-Write the gradient of cost `c` at `θ` into `g` and return the scalar cost value.
+Evaluate `cost` and overwrite `g` with its gradient at `z`.
+
+# Arguments
+- `cost::AbstractCost`: cost implementation.
+- `g`: preallocated gradient output buffer.
+- `z`: physical-coordinate parameter vector. It is not mutated.
+
+# Returns
+The scalar cost value. The generic fallback calls [`gradient!`](@ref) and then
+[`value`](@ref); custom cost types may extend this function to share work.
+
+# Example
+```julia
+cost = CostFunction(z -> sum(abs2, z), (g, z) -> (g .= 2 .* z))
+gradient = zeros(2)
+value_and_gradient!(cost, gradient, [1.0, 2.0])
+```
 """
 function value_and_gradient!(c::AbstractCost, g, z)
     gradient!(c, g, z)
@@ -159,7 +245,31 @@ end
 
 """
     TransformedCost(cost, chain)
-Wraps a `CostFunction` type. Applies the chain of transforms, each subtypes of `AbstractTransform` to the cost function, to alter the co-ordinate system the MD curve traces through
+    TransformedCost(cost::CostFunction)
+
+Associate an [`AbstractCost`](@ref) with a [`TransformChain`](@ref), allowing
+an MDC to evolve in transformed coordinates while the cost is evaluated in
+physical coordinates.
+
+# Fields
+- `cost::AbstractCost`: the physical-coordinate cost.
+- `chain::TransformChain`: map from MDC coordinates to the cost coordinates.
+
+# Arguments
+- `cost`: an `AbstractCost` implementation.
+- `chain`: transform sequence applied in declaration order. The one-argument
+  constructor uses the identity `TransformChain()`.
+
+Calling `transformed(θ)` returns the cost. Calling
+`transformed(θ, gθ)` also returns the cost and overwrites `gθ` with the
+gradient in transformed coordinates.
+
+# Example
+```julia
+cost = CostFunction(z -> sum(abs2, z), (g, z) -> (g .= 2 .* z))
+transformed = TransformedCost(cost, TransformChain(ScaleTransform([2.0, 1.0])))
+transformed([1.0, 2.0])
+```
 """
 struct TransformedCost{C <: AbstractCost, T <: TransformChain} <: AbstractCost
     cost::C

@@ -8,13 +8,62 @@
 @inline _mdc_front_impl(v, t...) = (v, _mdc_front_impl(t...)...)
 
 """
-   Abstract type for transforms that can be chained and applied to a user-supplied cost function inside a TransformChain
+Abstract interface for coordinate transforms used by [`TransformChain`](@ref).
+
+To define a custom transform, subtype `AbstractTransform` and extend the
+public generics [`forward`](@ref), [`inverse`](@ref), and [`pullback!`](@ref).
+
+# Required Methods
+- `forward(transform, x)`: return physical coordinates `y` for transformed
+  coordinates `x` without mutating `x`.
+- `inverse(transform, y)`: return coordinates `x` such that
+  `forward(transform, x)` is `y` on the transform's valid domain.
+- `pullback!(transform, g_in, g_out, x, y)`: overwrite `g_in` with
+  `J_forward(x)' * g_out`, where `y == forward(transform, x)`, and return
+  `g_in`.
+
+The input/output dimensions may differ. `g_in` must have the input dimension,
+`g_out` the output dimension; implementations may mutate only `g_in` and
+their own caches. A generic [`forward!`](@ref) fallback is available for
+custom transforms, while specialized implementations can provide an in-place
+method for performance. `g_in` is distinct from `x` and `y` when a custom
+transform is evaluated through a `TransformChain`.
+
+# Example
+```julia
+struct ShiftTransform <: AbstractTransform
+    shift::Float64
+end
+MinimallyDisruptiveCurves.forward(t::ShiftTransform, x) = x .+ t.shift
+MinimallyDisruptiveCurves.inverse(t::ShiftTransform, y) = y .- t.shift
+function MinimallyDisruptiveCurves.pullback!(::ShiftTransform, g_in, g_out, x, y)
+    return copyto!(g_in, g_out)
+end
+```
 """
 abstract type AbstractTransform end
 
 """
-    
-Accepts a tuple of transforms. Chains them together to make a composite transform.
+    TransformChain(transforms...)
+
+Compose zero or more [`AbstractTransform`](@ref)s.
+
+# Fields
+- `ts::Tuple`: transforms in forward application order. This field is public
+  for inspection; treat the contained transforms as immutable configuration.
+
+# Arguments
+- `transforms::AbstractTransform...`: transforms mapping MDC coordinates to
+  physical cost coordinates. `forward` applies them left-to-right; `inverse`
+  and `pullback!` apply them right-to-left.
+
+An empty chain is the identity transform.
+
+# Example
+```julia
+chain = TransformChain(ScaleTransform([2.0, 0.5]), LogAbsTransform())
+forward(chain, [0.0, log(4.0)])
+```
 """
 struct TransformChain{T <: Tuple} <: AbstractTransform
     ts::T
@@ -24,7 +73,22 @@ TransformChain(ts::AbstractTransform...) = TransformChain(ts)
 """
     forward(transform, x)
 
-Map parameters from transformed coordinates to physical coordinates.
+Map transformed coordinates `x` to physical coordinates.
+
+# Arguments
+- `transform::AbstractTransform`: transform or transform chain.
+- `x`: input coordinate vector. It is not mutated.
+
+# Returns
+The mapped coordinate vector. A `TransformChain` applies its transforms in
+declaration order.
+
+Custom `AbstractTransform` implementations must extend this generic.
+
+# Example
+```julia
+forward(ScaleTransform([2.0, 0.5]), [3.0, 4.0])
+```
 """
 function forward(tc::TransformChain, x)
     for t in tc.ts
@@ -36,7 +100,20 @@ end
 """
     inverse(transform, y)
 
-Map parameters from physical coordinates back to transformed coordinates.
+Map physical coordinates `y` back to transformed coordinates.
+
+# Arguments
+- `transform::AbstractTransform`: transform or transform chain.
+- `y`: output-coordinate vector. It is not mutated.
+
+# Returns
+The inverse-mapped vector. A `TransformChain` applies inverses in reverse
+declaration order.
+
+# Example
+```julia
+inverse(ScaleTransform([2.0, 0.5]), [6.0, 2.0])
+```
 """
 function inverse(tc::TransformChain, y)
     for i in length(tc.ts):-1:1
@@ -48,7 +125,25 @@ end
 """
     pullback!(transform, g_in, g_out, x, y)
 
-Pull a gradient in physical coordinates back through `transform`.
+Pull a physical-coordinate gradient back through `transform`.
+
+# Arguments
+- `transform::AbstractTransform`: transform or transform chain.
+- `g_in`: preallocated input-coordinate gradient buffer for the four-argument
+  form.
+- `g_out`: output-coordinate gradient.
+- `x`: transform input and `y`: transform output for the four-argument form.
+
+# Returns
+The input-coordinate gradient. `pullback!(chain, g_out, y)` allocates
+intermediate buffers for a convenient one-off calculation. The four-argument
+form is the extension contract and must return the same `g_in` object.
+
+# Example
+```julia
+gradient = zeros(2)
+pullback!(ScaleTransform([2.0, 0.5]), gradient, [3.0, 4.0], [1.0, 2.0], [2.0, 1.0])
+```
 """
 function pullback!(tc::TransformChain, g_initial, y_final)
     return _pullback_recursive(tc.ts, g_initial, y_final)
@@ -93,7 +188,21 @@ end
 # ====================================================================
 
 """
-   Scales parameters by constants. Correspondingly scales the effort MD curves take to move that parameter (which is the point of this)
+    ScaleTransform(w)
+
+Scale each coordinate by the corresponding entry of `w`.
+
+# Fields
+- `w::AbstractVector{<:Real}`: multiplicative scale factors. Its length must
+  match the transformed vectors.
+
+# Arguments
+- `w`: scale factors mapping `x` to `x .* w`.
+
+# Example
+```julia
+forward(ScaleTransform([2.0, 0.5]), [3.0, 4.0])
+```
 """
 struct ScaleTransform{V <: AbstractVector{<:Real}} <: AbstractTransform
     w::V
@@ -107,9 +216,18 @@ function pullback!(t::ScaleTransform, g_in, g_out, x, y)
 end
 
 """
-Transforms the parameters by x -> log(abs(x)) (componentwise).
-- This means that MDCs trace through relative, rather than absolute, changes in parameters.
-- Means that parameter cannot cross zero (in their raw co-ordinates)
+    LogAbsTransform()
+
+Represent positive physical coordinates in log coordinates.
+
+`forward(transform, x)` evaluates `exp.(x)` and `inverse(transform, y)`
+evaluates `log.(abs.(y))`. The forward map is strictly positive, so this
+transform cannot represent a path that crosses zero.
+
+# Example
+```julia
+forward(LogAbsTransform(), [0.0, log(2.0)])
+```
 """
 struct LogAbsTransform <: AbstractTransform end
 
@@ -127,7 +245,26 @@ function pullback!(::LogAbsTransform, g_in, g_out, x, y)
 end
 
 """
-Fixes parameters that the user doesn't wish to change over the MD curve.
+    FixedParamsTransform(free_idx, fixed_vals, full_dim)
+
+Embed a free-coordinate vector into a physical vector while holding the
+remaining coordinates fixed.
+
+# Fields
+- `free_idx`: physical indices supplied by the input vector.
+- `fixed_idx`: complementary physical indices, derived by the constructor.
+- `fixed_vals`: values inserted at `fixed_idx`.
+- `full_dim`: physical vector length.
+
+# Arguments
+- `free_idx::Vector{Int}`: distinct free physical indices.
+- `fixed_vals::Vector{Float64}`: fixed values ordered by complementary index.
+- `full_dim::Int`: positive physical-coordinate dimension.
+
+# Example
+```julia
+forward(FixedParamsTransform([1, 3], [10.0], 3), [2.0, 4.0])
+```
 """
 struct FixedParamsTransform <: AbstractTransform
     free_idx::Vector{Int}
@@ -202,8 +339,31 @@ end
     forward!(out, transform, x)
     forward!(chain, buffers, x)
 
-In-place form of [`forward`](@ref), using caller-provided output storage.
+In-place form of [`forward`](@ref), using caller-provided storage.
+
+# Arguments
+- `out`: output buffer with the transform output dimension.
+- `transform`: an `AbstractTransform` for the three-argument form.
+- `x`: input coordinates.
+- `chain`: a `TransformChain` for the three-argument chain form.
+- `buffers`: one output buffer per transform in `chain`.
+
+# Returns
+The final output buffer. The generic transform fallback calls `forward` and
+copies its result into `out`; custom transforms can extend it to avoid that
+temporary allocation.
+
+# Example
+```julia
+out = zeros(2)
+forward!(out, ScaleTransform([2.0, 0.5]), [3.0, 4.0])
+```
 """
+function forward!(out, transform::AbstractTransform, x)
+    copyto!(out, forward(transform, x))
+    return out
+end
+
 function forward!(out, t::ScaleTransform, x)
     @. out = x * t.w
     return out
@@ -233,14 +393,23 @@ end
     return _forward_chain!(_mdc_tail(ts), _mdc_tail(buffers), out)
 end
 
-# In-place pullback for the chain (recursive for type stability)
-function pullback!(tc::TransformChain, g_final, g_out, buffers)
-    # Pass g_final down so the last layer pulls back directly into the final gradient buffer
-    return _pullback_chain!(tc.ts, g_out, buffers, g_final)
+# The built-in implementations do not inspect `x`, so intermediate forward
+# buffers can also serve as gradient storage on the allocation-free hot path.
+const _BuiltinTransform = Union{ScaleTransform, LogAbsTransform, FixedParamsTransform}
+
+function pullback!(
+        tc::TransformChain{<:Tuple{Vararg{_BuiltinTransform}}},
+        g_final,
+        g_out,
+        buffers
+    )
+    return _pullback_builtin_chain!(tc.ts, g_out, buffers, g_final)
 end
 
-@inline _pullback_chain!(::Tuple{}, g_out, ::Tuple{}, g_final) = (g_final .= g_out; g_final)
-@inline function _pullback_chain!(ts::Tuple, g_out, buffers::Tuple, g_final)
+@inline _pullback_builtin_chain!(::Tuple{}, g_out, ::Tuple{}, g_final) =
+    (g_final .= g_out; g_final)
+
+@inline function _pullback_builtin_chain!(ts::Tuple, g_out, buffers::Tuple, g_final)
     t = last(ts)
     y = last(buffers)
     init_ts = _mdc_front(ts)
@@ -253,5 +422,25 @@ end
 
     pullback!(t, g_in, g_out, y, y)
 
-    return _pullback_chain!(init_ts, g_in, init_buffers, g_final)
+    return _pullback_builtin_chain!(init_ts, g_in, init_buffers, g_final)
+end
+
+function pullback!(tc::TransformChain, g_final, g_out, buffers)
+    return _pullback_generic_chain!(tc.ts, g_out, buffers, g_final)
+end
+
+@inline _pullback_generic_chain!(::Tuple{}, g_out, ::Tuple{}, g_final) =
+    (g_final .= g_out; g_final)
+
+@inline function _pullback_generic_chain!(ts::Tuple, g_out, buffers::Tuple, g_final)
+    t = last(ts)
+    y = last(buffers)
+    init_ts = _mdc_front(ts)
+    init_buffers = _mdc_front(buffers)
+    x = isempty(init_buffers) ? inverse(t, y) : last(init_buffers)
+    g_in = isempty(init_ts) ? g_final : similar(x)
+
+    pullback!(t, g_in, g_out, x, y)
+
+    return _pullback_generic_chain!(init_ts, g_in, init_buffers, g_final)
 end

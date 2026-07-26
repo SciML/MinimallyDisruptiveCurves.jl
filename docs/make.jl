@@ -44,12 +44,14 @@ Literate.markdown(
 makedocs(
     sitename = "MinimallyDisruptiveCurves.jl Documentation",
     modules = [MinimallyDisruptiveCurves],
-    warnonly = [:missing_docs],
+    checkdocs = :exports,
+    doctest = true,
     format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", "false") == "true",
     ),
     pages = [
         "Home" => "index.md",
+        "API Reference" => "api.md",
         "Examples" => [
             "Basic Mass-Spring" => "examples/01_basic_mass_spring.md",
             "Mass-Spring with Transforms" => "examples/02_transforming_costs.md",

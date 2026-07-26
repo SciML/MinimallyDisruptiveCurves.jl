@@ -1,9 +1,35 @@
 """
-    sparse_init_dir(hessian; orthogonal_to=nothing, λ=1.0, start=nothing, trim_level=1e-5, max_iter=2000, tol=1e-6)
+    sparse_init_dir(
+        hessian; orthogonal_to = [], λ = 1.0, start = nothing,
+        trim_level = 1.0e-5, max_iter = 2000, tol = 1.0e-6
+    )
 
-Convenience function for generating initial MDC curve directions. Essentially provides sparse eigenvector-correlates for Hessian.
-Trims tiny nonzero values in the output direction
-    
+Compute a sparse, unit-norm initial direction associated with a low-curvature
+direction of a symmetric Hessian.
+
+# Arguments
+- `hessian`: square real matrix. It should be symmetric; nonsymmetric input
+  does not have the intended curvature interpretation.
+
+# Keyword Arguments
+- `orthogonal_to`: vectors the result is projected away from before
+  normalization.
+- `λ::Real=1.0`: relative soft-threshold strength, scaled by the largest
+  eigenvalue.
+- `start`: optional initial vector; otherwise the smallest-eigenvalue vector
+  is used.
+- `trim_level::Real=1e-5`: entries with smaller absolute value are zeroed.
+- `max_iter::Integer=2000`: maximum proximal-gradient iterations.
+- `tol::Real=1e-6`: convergence threshold on successive iterates.
+
+# Returns
+`(direction, curvature)`, where `direction` is unit norm unless thresholding
+collapses it to zero, and `curvature == dot(direction, hessian, direction)`.
+
+# Example
+```julia
+direction, curvature = sparse_init_dir([1.0 0.0; 0.0 4.0])
+```
 """
 function sparse_init_dir(hessian; orthogonal_to = Vector{Vector{Float64}}(), λ = 1.0, start = nothing, trim_level = 1.0e-5, max_iter = 2000, tol = 1.0e-6)
     n = size(hessian, 1)
@@ -91,8 +117,30 @@ function sparse_init_dir(hessian; orthogonal_to = Vector{Vector{Float64}}(), λ 
 end
 
 """
-    sparse_eigenbasis(hessian, num_vectors::Int; λ=1.0, trim_level=1e-5, max_iter=2000, tol=1e-6)    
+    sparse_eigenbasis(
+        hessian, num_vectors; λ = 1.0, trim_level = 1.0e-5,
+        max_iter = 2000, tol = 1.0e-6
+    )
 
+Build up to `num_vectors` sparse, mutually projected initial MDC directions.
+
+# Arguments
+- `hessian`: square real Hessian matrix.
+- `num_vectors::Integer`: requested number of directions, no larger than the
+  Hessian dimension.
+
+# Keyword Arguments
+- `λ`, `trim_level`, `max_iter`, `tol`: forwarded to [`sparse_init_dir`](@ref).
+
+# Returns
+`(basis, values)`, where `basis` contains each accepted sparse direction and
+`values` contains its Rayleigh quotient. The result can contain fewer than
+`num_vectors` entries if sparsification collapses a later direction.
+
+# Example
+```julia
+basis, values = sparse_eigenbasis([1.0 0.0; 0.0 4.0], 2)
+```
 """
 function sparse_eigenbasis(hessian, num_vectors::Int; λ = 1.0, trim_level = 1.0e-5, max_iter = 2000, tol = 1.0e-6)
     n = size(hessian, 1)

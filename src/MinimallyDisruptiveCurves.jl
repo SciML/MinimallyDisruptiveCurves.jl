@@ -18,9 +18,9 @@ include("utilities.jl")
 import Base.show
 
 export AbstractTransform, TransformChain, ScaleTransform, LogAbsTransform, FixedParamsTransform
-export AbstractCost, CostFunction, TransformedCost, inverse, forward, gradient!, value_and_gradient!, cost_trajectory
-export MDCSolve, MDCProblem, ODEProblem, MDCSpan
-export forward!, pullback!, generate_fwd_caches
+export AbstractCost, CostFunction, TransformedCost, inverse, forward, forward!, pullback!, gradient!, value, value_and_gradient!, cost_trajectory
+export MDCSolve, MDCProblem, MDCSpan
+export generate_fwd_caches
 
 
 export mdc_safety_callback, mdc_bounds_callback, mdc_verbose_callbacks
@@ -31,6 +31,22 @@ export mdc_dHdu_residual, mdc_momentum_readjustment
     animate_mdc(args...; kwargs...)
 
 Plotting extension hook for animations of minimally disruptive curves.
+
+This generic is extended by `MDCPlotsExt` when `Plots.jl` is loaded. Load
+`Plots` before calling it; the base package intentionally provides no plotting
+backend or fallback implementation.
+
+# Arguments
+- `args...`: plotting data accepted by the active extension.
+
+# Keyword Arguments
+- `kwargs...`: plotting options accepted by the active extension.
+
+# Example
+```julia
+using MinimallyDisruptiveCurves, Plots
+# animate_mdc(curve; filename = "curve.gif")
+```
 """
 function animate_mdc end
 export animate_mdc

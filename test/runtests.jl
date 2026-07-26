@@ -12,6 +12,9 @@ run_tests(;
         @safetestset "Cost Wrapper Mechanics" begin
             include(joinpath(@__DIR__, "test_costs.jl"))
         end
+        @safetestset "Public Generic Interfaces" begin
+            include(joinpath(@__DIR__, "test_interfaces.jl"))
+        end
         @safetestset "Solver Pipelines & Integration" begin
             include(joinpath(@__DIR__, "test_solvers.jl"))
         end

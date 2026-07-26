@@ -107,8 +107,4 @@ end
         @test isempty(JET.get_reports(rep))
     end
 end
-run_qa(
-    MinimallyDisruptiveCurves;
-    explicit_imports = true,
-    api_docs_kwargs = (; rendered = true),
-)
+run_qa(MinimallyDisruptiveCurves)

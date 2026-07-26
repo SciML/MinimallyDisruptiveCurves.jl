@@ -5,7 +5,23 @@
 """
     generate_fwd_caches(chain, θ₀)
 
-Allocate reusable buffers for in-place forward transforms through `chain`.
+Allocate reusable buffers for the in-place [`forward!`](@ref) path through a
+transform chain.
+
+# Arguments
+- `chain::TransformChain`: transforms evaluated in declaration order.
+- `θ₀`: representative input coordinates used to infer output shapes.
+
+# Returns
+A tuple with one mutable buffer per transform. These buffers are mutated by
+`forward!(chain, buffers, x)` and are not thread-safe.
+
+# Example
+```julia
+chain = TransformChain(ScaleTransform([2.0, 0.5]))
+buffers = generate_fwd_caches(chain, [1.0, 2.0])
+forward!(chain, buffers, [3.0, 4.0])
+```
 """
 function generate_fwd_caches(chain::TransformChain, θ₀)
     return _generate_fwd_caches(chain.ts, θ₀)
@@ -24,9 +40,33 @@ abstract type AbstractMDCProblem end
 abstract type AbstractMDCSolution end
 
 """
-    MDCProblem(cost, theta0, dtheta0, momentum, names)
+    MDCProblem(cost, θ₀, dθ₀, momentum; names = nothing)
 
-Holds and specifies the information needed to evolve an MD curve. names is an optional vector of symbols holding parameter names.
+Specify the cost, starting point, and initial direction for a minimally
+disruptive curve.
+
+# Fields
+- `cost`: a `TransformedCost` or compatible callable cost.
+- `θ₀`: initial coordinates in the domain expected by `cost`.
+- `dθ₀`: initial MDC direction, with the same length as `θ₀`.
+- `momentum`: scalar energy cap `H`; it must exceed `cost(θ₀)` before solving.
+- `names::Vector{Symbol}`: display names for input coordinates.
+
+# Arguments
+- `cost`: a `TransformedCost`; a `CostFunction` is wrapped in an identity
+  transform chain automatically.
+- `θ₀`: initial parameter vector.
+- `dθ₀`: initial direction vector.
+- `momentum`: MDC momentum cap.
+
+# Keyword Arguments
+- `names`: coordinate names. The default is `:θ_1`, `:θ_2`, and so on.
+
+# Example
+```julia
+cost = CostFunction(z -> sum(abs2, z), (g, z) -> (g .= 2 .* z))
+MDCProblem(cost, [1.0, 0.0], [0.0, 1.0], 3.0; names = [:x, :y])
+```
 """
 struct MDCProblem{T, C, V <: AbstractVector{T}} <: AbstractMDCProblem
     cost::C          # TransformedCost structure
@@ -44,7 +84,9 @@ end
 
 """
     TransformedCost(core_cost::CostFunction)
-    
+
+Construct an identity-coordinate [`TransformedCost`](@ref) around `core_cost`.
+Use `TransformedCost(core_cost, chain)` to supply an explicit coordinate map.
 """
 function TransformedCost(core_cost::CostFunction)
     return TransformedCost(core_cost, TransformChain())
@@ -81,8 +123,21 @@ function MDCWorkspace(sys::MDCProblem)
 end
 
 """
-    MDCSpan(lower_bound <= 0, upper_bound >= 0)
-Specifies the length of the MDC curve. negative values mean evolving th curve in the negative direction of the initial direction. If `lower_bound < 0` and `upper_bound > 0` then the curve evolution happens in two separate solves. 
+    MDCSpan(negative, positive)
+
+Specify negative and positive arc-length limits for [`MDCSolve`](@ref).
+
+# Fields
+- `negative`: non-positive endpoint of the backward integration span.
+- `positive`: non-negative endpoint of the forward integration span.
+
+Each nonzero direction is solved independently. A zero bound omits that
+direction and leaves its solution piece as `nothing`.
+
+# Example
+```julia
+MDCSpan(-2.0, 5.0)
+```
 """
 struct MDCSpan{T <: AbstractFloat}
     negative::T
@@ -100,8 +155,12 @@ end
 
 
 """
-    Initialises costates based on momentum and initial param direction. Internal use.
-    
+    initialise_lambda(sys, ws)
+
+Construct the initial costate for the MDC equations.
+
+This developer-facing helper mutates the `MDCWorkspace(sys)` supplied as `ws`
+for gradient scratch storage. It throws if `sys.momentum <= sys.cost(sys.θ₀)`.
 """
 function initialise_lambda(sys::MDCProblem, ws::MDCWorkspace)
     θ₀ = sys.θ₀
@@ -121,7 +180,11 @@ end
 
 """
     vectorfield(sys::MDCProblem)
-Function factory to generate the vector field for the MDC  
+Return an in-place ODE right-hand side for `sys`.
+
+This developer-facing helper returns `f!(du, u, p, t)`, where `u` and `du`
+concatenate MDC coordinates and costates, each with `length(sys.θ₀)` entries.
+The closure owns mutable scratch buffers and must not be called concurrently.
 """
 function vectorfield(sys::MDCProblem)
     cost = sys.cost
@@ -183,8 +246,21 @@ end
 """
     mdc_dHdu_residual(sys::MDCProblem, u, t)
 
-Computes the raw L1 numerical drift from dHdu = 0.
-This operates directly on the raw state vector `u`.
+Compute the L1 residual of the MDC Hamiltonian derivative identity.
+
+# Arguments
+- `sys::MDCProblem`: curve specification.
+- `u`: concatenated coordinate/costate state with length `2 * length(sys.θ₀)`.
+- `t`: curve arc length, used to avoid the singular origin formula.
+
+# Returns
+A nonnegative scalar diagnostic residual. It is intended for callback
+conditions, not as a replacement for solving the MDC equations.
+
+# Example
+```julia
+# residual = mdc_dHdu_residual(problem, state, 0.1)
+```
 """
 function mdc_dHdu_residual(sys::MDCProblem, u, t)
     N = length(sys.θ₀)
@@ -232,11 +308,26 @@ end
 # ====================================================================
 
 """
-    mdc_momentum_readjustment(sys::MDCProblem; tol=1e-2)
+    mdc_momentum_readjustment(sys::MDCProblem; tol = 1.0e-3)
 
-Creates a DiscreteCallback that watches the dHdu numerical drift. If it 
-exceeds `tol`, the costate (λ) is orthogonally projected back onto the 
-manifold where the Hamiltonian derivative identity holds.
+Create a `DiscreteCallback` that projects costates back onto the MDC momentum
+manifold when [`mdc_dHdu_residual`](@ref) exceeds a tolerance.
+
+# Arguments
+- `sys::MDCProblem`: curve specification captured by the callback.
+
+# Keyword Arguments
+- `tol::Real=1e-3`: residual threshold that triggers readjustment. Choose a
+  value consistent with solver tolerances; smaller values increase callback
+  interventions.
+
+# Returns
+A `DiscreteCallback` suitable for the `callback` keyword of [`MDCSolve`](@ref).
+
+# Example
+```julia
+# callback = mdc_momentum_readjustment(problem; tol = 1e-4)
+```
 """
 function mdc_momentum_readjustment(sys::MDCProblem; tol = 1.0e-3)
     N = length(sys.θ₀)
@@ -290,10 +381,25 @@ function mdc_momentum_readjustment(sys::MDCProblem; tol = 1.0e-3)
 end
 
 """
-    mdc_safety_callback(sys::MDCProblem; tol=1e-4)
+    mdc_safety_callback(sys::MDCProblem; tol = 1.0e-4)
 
-Returns a DiscreteCallback that terminates integration if the cost `C` 
-approaches or exceeds the total momentum `H`.
+Create a `DiscreteCallback` that terminates a curve before its cost reaches
+the momentum cap.
+
+# Arguments
+- `sys::MDCProblem`: curve specification captured by the callback.
+
+# Keyword Arguments
+- `tol::Real=1e-4`: safety margin; the callback terminates when
+  `cost >= sys.momentum - tol`.
+
+# Returns
+A `DiscreteCallback` suitable for [`MDCSolve`](@ref).
+
+# Example
+```julia
+# callback = mdc_safety_callback(problem; tol = 1e-5)
+```
 """
 function mdc_safety_callback(sys::MDCProblem; tol = 1.0e-4)
     N = length(sys.θ₀)
@@ -315,8 +421,25 @@ end
 """
     mdc_bounds_callback(ids, lbs, ubs)
 
-Returns a DiscreteCallback that terminates integration if specified parameter 
-indices fall outside lower bounds `lbs` or upper bounds `ubs`.
+Create a `DiscreteCallback` that terminates when selected state entries leave
+closed bounds.
+
+# Arguments
+- `ids`: indices into the ODE state vector. For parameter bounds, use indices
+  in `1:length(problem.θ₀)`; costates occupy trailing entries.
+- `lbs`: lower bounds, one per `ids` entry.
+- `ubs`: upper bounds, one per `ids` entry.
+
+All vectors must have matching lengths. The callback does not validate that
+invariant before indexing, so validate user-provided bounds at setup.
+
+# Returns
+A `DiscreteCallback` suitable for [`MDCSolve`](@ref).
+
+# Example
+```julia
+callback = mdc_bounds_callback([1, 2], [-2.0, -1.0], [2.0, 1.0])
+```
 """
 function mdc_bounds_callback(ids::Vector{<:Integer}, lbs::Vector{<:Number}, ubs::Vector{<:Number})
     condition = (u, t, integrator) -> begin
@@ -339,10 +462,26 @@ end
 
 
 """
-    mdc_verbose_callbacks(sys::MDCProblem, timepoints; is_negative=false)
+    mdc_verbose_callbacks(sys::MDCProblem, timepoints; is_negative = false)
 
-Returns a Tuple of PresetTimeCallbacks for logging the path arc-length and 
-Hamiltonian energy drift (residual).
+Return two `PresetTimeCallback`s that log arc length and energy residual.
+
+# Arguments
+- `sys::MDCProblem`: curve specification used for the diagnostic residual.
+- `timepoints`: iterable of nonnegative arc lengths at which to log.
+
+# Keyword Arguments
+- `is_negative::Bool=false`: log at negative absolute values of `timepoints`,
+  for a backward curve solve.
+
+# Returns
+A tuple `(distance_callback, residual_callback)`. Combine it with other
+callbacks using the public `SciMLBase.CallbackSet` API.
+
+# Example
+```julia
+# callbacks = mdc_verbose_callbacks(problem, [0.5, 1.0])
+```
 """
 function mdc_verbose_callbacks(sys::MDCProblem, timepoints; is_negative = false)
     N = length(sys.θ₀)
@@ -372,7 +511,7 @@ function mdc_verbose_callbacks(sys::MDCProblem, timepoints; is_negative = false)
 end
 
 """
-    MDCSolve(sys::MDCProblem; span, mode, dt, callback, parallel, alg=Tsit5()) -> MDCSolution
+    MDCSolve(sys::MDCProblem; span, mode, dt, callback, parallel, alg = Tsit5()) -> MDCSolution
 
 Solve the Minimally Disruptive Curve (MDC) differential equations for a given system.
 This function integrates the MDC vector field both forwards and backwards in time from the 
@@ -380,7 +519,7 @@ initial state, returning an `MDCSolution` containing the joint trajectory pieces
 constructs a unified initial condition state vector combining parameters \$\\theta_0\$ and 
 their respective tracking sensitivities \$\\lambda_0\$.
 
-# Keyword arguments
+# Keyword Arguments
 - `span::MDCSpan`: arc-length range to integrate over (default `MDCSpan(-10.0, 10.0)`).
 - `alg`: any `OrdinaryDiffEq.AbstractODEAlgorithm`. Defaults to `Tsit5()`. Pass a stiff
   solver (e.g. `Rodas5()`) if your cost function has stiff Jacobians.
@@ -388,6 +527,17 @@ their respective tracking sensitivities \$\\lambda_0\$.
 - `dt`: step size hint for `:fixed` and `:fast` modes.
 - `callback`: a `DiscreteCallback`, `CallbackSet`, or `nothing`.
 - `parallel::Bool`: solve the forward and backward pieces concurrently via `Threads.@spawn`.
+
+# Returns
+An `MDCSolution` whose `positive_sol` and `negative_sol` fields contain the
+requested solution directions, or `nothing` for omitted directions.
+
+# Example
+```julia
+cost = CostFunction(z -> sum(abs2, z), (g, z) -> (g .= 2 .* z))
+problem = MDCProblem(cost, [1.0, 0.0], [0.0, 1.0], 3.0)
+curve = MDCSolve(problem; span = MDCSpan(0.0, 0.1))
+```
 """
 function MDCSolve(
         sys::MDCProblem;
@@ -497,7 +647,21 @@ end
 """
     cost_trajectory(curve[, ts])
 
-Evaluate the curve's cost along the supplied time grid, or along saved solution times.
+Evaluate a solved curve's cost along supplied arc lengths or saved solution
+times.
+
+# Arguments
+- `curve`: result returned by [`MDCSolve`](@ref).
+- `ts`: optional vector of arc lengths. When omitted, saved times from all
+  available solution directions are used.
+
+# Returns
+A vector of scalar costs in the same order as `ts` or the saved times.
+
+# Example
+```julia
+# costs = cost_trajectory(curve, range(0.0, 1.0; length = 11))
+```
 """
 function cost_trajectory(curve::MDCSolution, ts::AbstractVector)
     cost = curve.spec.cost

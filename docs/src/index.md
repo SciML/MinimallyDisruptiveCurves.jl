@@ -1,34 +1,6 @@
-# MinimallyDisruptiveCurves.jl Documentation
+# MinimallyDisruptiveCurves.jl
 
-Welcome to the automated API reference. 
-
-For high-level conceptual user guides and tutorials, please visit the main documentation page:
-* [Main User Guide (Hugo)](https://dhruva2.github.io/MinimallyDisruptiveCurves.docs/)
-
-
-```@docs
-MDCSolve
-AbstractTransform
-TransformChain
-ScaleTransform
-LogAbsTransform
-FixedParamsTransform
-CostFunction
-TransformedCost
-MDCProblem
-MDCSpan
-MinimallyDisruptiveCurves.MDCSolution
-MinimallyDisruptiveCurves.vectorfield
-MinimallyDisruptiveCurves.initialise_lambda
-mdc_safety_callback
-mdc_bounds_callback
-mdc_verbose_callbacks
-mdc_dHdu_residual
-mdc_momentum_readjustment
-sparse_init_dir
-sparse_eigenbasis
-```
-
-```@autodocs; canonical=false
-Modules = [MinimallyDisruptiveCurves]
-```
+MinimallyDisruptiveCurves.jl traces parameter-space curves that preserve a
+user-defined scalar cost. Start with the
+[basic mass-spring example](examples/01_basic_mass_spring.md), then use the
+[API reference](api.md) for the cost and transformation interfaces.

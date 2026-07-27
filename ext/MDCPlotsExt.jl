@@ -35,7 +35,8 @@ function MinimallyDisruptiveCurves.animate_mdc(
     full_grid = collect(range(min_t_bound, stop = max_t_bound, length = density))
     sampled_states = [curve(t) for t in full_grid]
 
-    N_params = (length(sampled_states[1])) ÷ 2
+    N_params = (length(θ₀))
+
     out_dim = raw ? length(mdc_sys.names) : N_params
 
     Y_global = Matrix{Float64}(undef, length(full_grid), out_dim)

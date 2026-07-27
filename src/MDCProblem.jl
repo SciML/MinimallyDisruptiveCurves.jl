@@ -177,6 +177,71 @@ function vectorfield(sys::MDCProblem)
 end
 
 """
+    vectorfield(sys::MDCProblem)
+Function factory to generate the vector field for the MDC  
+"""
+function piVectorfield(sys::MDCProblem)
+    cost = sys.cost
+    θ₀ = sys.θ₀
+    H = sys.momentum
+    N = length(θ₀)
+    chain = cost.chain
+    fwd_caches = generate_fwd_caches(chain, θ₀)
+    N_physical = isempty(fwd_caches) ? N : length(fwd_caches[end])
+
+    # Allocate space caches once per thread closure
+    grad_cache = Vector{eltype(θ₀)}(undef, N)
+    diff_θ = Vector{eltype(θ₀)}(undef, N)
+    gz_cache = Vector{eltype(θ₀)}(undef, N_physical)
+
+    let grad_cache = grad_cache, gz_cache = gz_cache, diff_θ = diff_θ, N = N, cost = cost, H = H, θ₀ = θ₀, fwd_caches = fwd_caches
+        return function f!(du, u, p, t)
+            θ = @view u[1:N]
+            λ = @view u[(N + 1):2N]
+            i = @view u[(2N + 1):end]
+            dθ = @view du[1:N]
+            dλ = @view du[(N + 1):2N]
+            di = @view du[(2N + 1):end]
+
+            @. diff_θ = θ - θ₀
+            dist = sum(abs2, diff_θ)
+
+            C = cost(θ, grad_cache, gz_cache, fwd_caches)
+
+            # --- MDC Core equations---
+            μ2 = (C - H) / 2.0
+            μ2_smooth = sign(μ2) * sqrt(μ2^2 + 1.0e-20)
+
+            λ_dot_λ = dot(λ, λ)
+            λ_dot_diff = dot(λ, diff_θ)
+
+            μ1 = dist > 1.0e-5 ? (λ_dot_λ - 4.0 * μ2^2) / (λ_dot_diff + 1.0e-10 * sign(λ_dot_diff)) : 0.0
+            inv_2μ2 = 1.0 / (2.0 * μ2)
+
+            @. dθ = (-λ + μ1 * diff_θ) * inv_2μ2
+
+            dθ_norm = norm(dθ)
+            if dθ_norm > 1.0e-8
+                @. dθ /= dθ_norm
+            end
+
+            energy_gap = max(1.0e-6, H - C)
+            damping = dot(λ, dθ) / energy_gap
+
+            @. dλ = (μ1 * dθ - grad_cache) * damping
+
+            # PI control
+            error = λ - (-2.0 .* μ2 .* dθ)
+            Kp, Ki = p[1], p[2]
+            @. λ -= Kp * error + Ki * i
+            @. di = error
+
+            return nothing
+        end
+    end
+end
+
+"""
     MDCSolve(sys::MDCProblem; span, mode, dt, callback, parallel, alg=Tsit5()) -> MDCSolution
 
 Solve the Minimally Disruptive Curve (MDC) differential equations for a given system.
@@ -201,17 +266,22 @@ function MDCSolve(
         dt = 0.01,
         callback = nothing,
         parallel = false,
-        alg = Tsit5()
+        alg = Tsit5(),
+        use_pi_control = false,
+        pi_params = nothing
     )
-
     ws = MDCWorkspace(sys)
     λ₀ = initialise_lambda(sys, ws)
 
-    # 2. Build the unified initial conditions vector [θ₀; λ₀]
+    # 2. Build the unified initial conditions vector [θ₀; λ₀; I]
+    # I the integral used for PI control included if required
     T = eltype(sys.θ₀)
-    u0 = Vector{T}(undef, 2 * length(sys.θ₀))
+    u0 =  use_pi_control ? Vector{T}(undef, 3 * length(sys.θ₀)) : Vector{T}(undef, 2 * length(sys.θ₀))
     u0[1:length(sys.θ₀)] .= sys.θ₀
-    u0[(length(sys.θ₀) + 1):end] .= λ₀
+    u0[(length(sys.θ₀) + 1): (2 *length(sys.θ₀))] .= λ₀
+    if use_pi_control
+        u0[(2 * length(sys.θ₀) + 1):end] .= zeros(T, length(sys.θ₀))
+    end
 
 
     solve_kwargs = if mode == :fixed
@@ -230,8 +300,8 @@ function MDCSolve(
 
     run_neg() = begin
         if span.negative < 0.0
-            local_vf_neg! = vectorfield(sys)
-            prob_neg = ODEProblem(local_vf_neg!, u0, (0.0, span.negative), sys)
+            local_vf_neg! = use_pi_control ? piVectorfield(sys) : vectorfield(sys)
+            prob_neg = ODEProblem(local_vf_neg!, u0, (0.0, span.negative), pi_params)
             return solve(prob_neg, alg; callback = callback, solve_kwargs...)
         end
         return nothing
@@ -239,8 +309,8 @@ function MDCSolve(
 
     run_pos() = begin
         if span.positive > 0.0
-            local_vf_pos! = vectorfield(sys)
-            prob_pos = ODEProblem(local_vf_pos!, u0, (0.0, span.positive), sys)
+            local_vf_pos! = use_pi_control ? piVectorfield(sys) : vectorfield(sys)
+            prob_pos = ODEProblem(local_vf_pos!, u0, (0.0, span.positive), pi_params)
             return solve(prob_pos, alg; callback = callback, solve_kwargs...)
         end
         return nothing

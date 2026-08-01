@@ -1,10 +1,11 @@
 module MDCPlotsExt
 
-using MinimallyDisruptiveCurves
-using Plots
-using Plots.PlotMeasures
-
-import MinimallyDisruptiveCurves: MDCSolution, animate_mdc, transform_names
+using MinimallyDisruptiveCurves: MinimallyDisruptiveCurves, MDCSolution, transform_names
+# `mm` is owned by Measures, which Plots only re-exports; Measures is a second extension
+# trigger so it can be taken from its owner. The `0.33w` in the `@layout` block below is
+# macro DSL syntax that `@layout` consumes at expansion time, so `w` needs no binding.
+using Measures: mm
+using Plots: Plots
 
 """
     

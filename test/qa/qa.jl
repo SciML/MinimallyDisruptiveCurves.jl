@@ -3,6 +3,12 @@ using JET
 using MinimallyDisruptiveCurves
 using Test
 
+# ExplicitImports only checks an extension module once it exists, and an extension
+# module only exists once every one of its triggers is loaded. Loading MDCPlotsExt's
+# triggers here is what puts it in front of the ExplicitImports checks in `run_qa`.
+using Measures
+using Plots
+
 """
 JET static analysis tests for MinimallyDisruptiveCurves.jl
 
@@ -107,4 +113,14 @@ end
         @test isempty(JET.get_reports(rep))
     end
 end
-run_qa(MinimallyDisruptiveCurves)
+run_qa(
+    MinimallyDisruptiveCurves;
+    ei_kwargs = (;
+        all_explicit_imports_are_public = (;
+            # MinimallyDisruptiveCurves: MDCPlotsExt is this package's own extension, so it
+            # reaches into the package's internals by design. Neither name has a public
+            # equivalent to route through.
+            ignore = (:MDCSolution, :transform_names),
+        ),
+    ),
+)

@@ -14,7 +14,6 @@ RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 SciMLStructures = "53ae85a6-f571-4167-b2af-e1d143709226"
 SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
-OrdinaryDiffEqDifferentiation = "4302a76b-040a-498a-8c04-15b101fed76b" # not used directly; a direct dep only so the compat bound below can exclude 3.2.3
 
 [weakdeps]
 Measures = "442fdcdd-2543-5da2-b0f3-8c86c306513e"
@@ -34,7 +33,7 @@ ExplicitImports = "1"
 ForwardDiff = "0.10, 1"
 LinearAlgebra = "1.10"
 Measures = "0.3"
-OrdinaryDiffEq = "7"
+OrdinaryDiffEq = "7.3"
 Plots = "1.40"
 PreallocationTools = "1.2"
 PrecompileTools = "1.0"
@@ -46,7 +45,6 @@ SciMLTesting = "2.4"
 Symbolics = "6, 7"
 Test = "1"
 julia = "1.10"
-OrdinaryDiffEqDifferentiation = "3.3" # lower bound skips 3.2.3, which had a precompilation bug
 
 [workspace]
 projects = ["docs"]

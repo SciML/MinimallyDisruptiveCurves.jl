@@ -145,7 +145,33 @@ struct MDCSpan{T <: AbstractFloat}
 end
 
 """
-Object holding information on evolved curve. (c::MDCurve).spec gives the MDCProblem from which it was generated 
+    MDCSolution(positive_sol, negative_sol, spec)
+
+Read-only result of [`MDCSolve`](@ref), holding the independently integrated forward
+and backward branches of a minimally disruptive curve.
+
+## Fields
+
+  - `positive_sol`: The solution over nonnegative arc lengths, or `nothing` when the
+    requested [`MDCSpan`](@ref) omits the forward branch.
+  - `negative_sol`: The solution over nonpositive arc lengths, or `nothing` when the
+    requested [`MDCSpan`](@ref) omits the backward branch.
+  - `spec`: The [`MDCProblem`](@ref) whose cost, transforms, and initial condition define
+    the curve.
+
+## Developer API
+
+`MDCSolution` is the stable result contract used by package extensions such as
+`MDCPlotsExt`. Consumers may inspect its fields and evaluate a solution with
+`curve(t)`, but should obtain instances from [`MDCSolve`](@ref) rather than constructing
+them directly. Do not subtype this concrete type.
+
+## Examples
+
+```julia
+curve = MDCSolve(problem)
+curve(0.0; type = :parameters)
+```
 """
 struct MDCSolution{P, N, C <: AbstractMDCProblem} <: AbstractMDCSolution
     positive_sol::P

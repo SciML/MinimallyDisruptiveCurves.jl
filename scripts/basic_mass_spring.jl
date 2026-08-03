@@ -28,7 +28,7 @@ end
 # ====================================================================
 
 """
-    make_mse_cost_function(θ_nominal; u0=[1.0, 0.0], tspan=(0.0, 10.0), dt=0.1)
+    make_mse_cost_function(θ_nominal; u0 = [1.0, 0.0], tspan = (0.0, 10.0), dt = 0.1)
 
 Generates a clean `CostFunction` instance. It pre-computes a reference trajectory 
 using `θ_nominal` and evaluates the MSE deviation for any test parameter vector θ.

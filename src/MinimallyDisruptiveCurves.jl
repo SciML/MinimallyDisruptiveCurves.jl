@@ -21,6 +21,7 @@ export AbstractTransform, TransformChain, ScaleTransform, LogAbsTransform, Fixed
 export AbstractCost, CostFunction, TransformedCost, inverse, forward, forward!, pullback!, gradient!, value, value_and_gradient!, cost_trajectory
 export MDCSolve, MDCProblem, MDCSpan
 export generate_fwd_caches
+public MDCSolution, transform_names
 
 
 export mdc_safety_callback, mdc_bounds_callback, mdc_verbose_callbacks

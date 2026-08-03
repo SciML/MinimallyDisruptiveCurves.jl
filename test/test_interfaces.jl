@@ -1,7 +1,7 @@
 using MinimallyDisruptiveCurves
 using Test
 
-import MinimallyDisruptiveCurves: forward, inverse, pullback!, value, gradient!
+import MinimallyDisruptiveCurves: forward, inverse, pullback!, transform_names, value, gradient!
 
 struct ShiftTransform <: AbstractTransform
     shift::Float64
@@ -42,6 +42,7 @@ end
     @test g_in == g_out
 
     chain = TransformChain(transform, ScaleTransform([3.0, 0.5]))
+    @test transform_names(chain, [:x, :y]) == [Symbol("3.0 * x"), Symbol("0.5 * y")]
     buffers = generate_fwd_caches(chain, x)
     @test forward!(chain, buffers, x) == [9.0, -0.5]
 

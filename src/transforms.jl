@@ -179,6 +179,39 @@ function pullback!(tc::TransformChain{Tuple{}}, g_initial, y_final)
     return g_initial
 end
 
+"""
+    transform_names(transform, names) -> Vector{Symbol}
+
+Map parameter labels through an [`AbstractTransform`](@ref) or
+[`TransformChain`](@ref).
+
+## Arguments
+
+  - `transform`: A transform or transform chain applied to the corresponding parameter
+    coordinates.
+  - `names::Vector{Symbol}`: Labels for those coordinates.
+
+## Returns
+
+  - A vector of labels in the transformed coordinate system. The identity fallback
+    returns `names` unchanged.
+
+## Extension Rules
+
+Custom `AbstractTransform` implementations that only preserve coordinate labels use the
+identity fallback. Extend `transform_names(::YourTransform, names)` when a transform
+changes, removes, combines, or otherwise reinterprets coordinates. The method must
+return a `Vector{Symbol}` matching the transformed coordinate ordering. Do not mutate
+`names`.
+
+## Examples
+
+```julia
+transform_names(ScaleTransform([2.0, 1.0]), [:length, :time])
+```
+"""
+transform_names(::AbstractTransform, names::Vector{Symbol}) = names
+
 function transform_names(tc::TransformChain{Tuple{}}, names::Vector{Symbol})
     return names
 end

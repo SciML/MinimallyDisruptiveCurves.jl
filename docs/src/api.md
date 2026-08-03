@@ -47,3 +47,13 @@ sparse_init_dir
 sparse_eigenbasis
 animate_mdc
 ```
+
+## Developer Interfaces
+
+These contracts support package extensions. They are versioned and documented, but are
+not intended as general application-level construction APIs.
+
+```@docs
+MinimallyDisruptiveCurves.MDCSolution
+MinimallyDisruptiveCurves.transform_names
+```

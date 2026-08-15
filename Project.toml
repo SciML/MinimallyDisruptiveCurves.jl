@@ -44,7 +44,7 @@ SciMLBase = "3.17"
 SciMLPublic = "1"
 SciMLStructures = "1.10"
 SciMLTesting = "2.4"
-Symbolics = "6, 7"
+Symbolics = "7"
 Test = "1"
 julia = "1.10"
 

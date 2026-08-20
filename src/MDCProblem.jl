@@ -198,24 +198,28 @@ function piVectorfield(sys::MDCProblem)
         return function f!(du, u, p, t)
             θ = @view u[1:N]
             λ = @view u[(N + 1):2N]
-            i = @view u[(2N + 1):end]
+            i = @view u[(2N + 1):3N]
             dθ = @view du[1:N]
             dλ = @view du[(N + 1):2N]
-            di = @view du[(2N + 1):end]
+            di = @view du[(2N + 1):3N]
+
 
             @. diff_θ = θ - θ₀
             dist = sum(abs2, diff_θ)
 
             C = cost(θ, grad_cache, gz_cache, fwd_caches)
 
+            # u[end] tracks the integral of the cost across the curve to measure overall performance
+            du[end] = C
+
             # --- MDC Core equations---
             μ2 = (C - H) / 2.0
-            μ2_smooth = sign(μ2) * sqrt(μ2^2 + 1.0e-20)
 
             λ_dot_λ = dot(λ, λ)
             λ_dot_diff = dot(λ, diff_θ)
 
             μ1 = dist > 1.0e-5 ? (λ_dot_λ - 4.0 * μ2^2) / (λ_dot_diff + 1.0e-10 * sign(λ_dot_diff)) : 0.0
+
             inv_2μ2 = 1.0 / (2.0 * μ2)
 
             @. dθ = (-λ + μ1 * diff_θ) * inv_2μ2
@@ -276,11 +280,12 @@ function MDCSolve(
     # 2. Build the unified initial conditions vector [θ₀; λ₀; I]
     # I the integral used for PI control included if required
     T = eltype(sys.θ₀)
-    u0 =  use_pi_control ? Vector{T}(undef, 3 * length(sys.θ₀)) : Vector{T}(undef, 2 * length(sys.θ₀))
+    u0 =  use_pi_control ? Vector{T}(undef, 3 * length(sys.θ₀) + 1) : Vector{T}(undef, 2 * length(sys.θ₀))
     u0[1:length(sys.θ₀)] .= sys.θ₀
-    u0[(length(sys.θ₀) + 1): (2 *length(sys.θ₀))] .= λ₀
+    u0[(length(sys.θ₀) + 1):(2 *length(sys.θ₀))] .= λ₀
     if use_pi_control
-        u0[(2 * length(sys.θ₀) + 1):end] .= zeros(T, length(sys.θ₀))
+        u0[(2 * length(sys.θ₀) + 1):(3 *length(sys.θ₀))] .= zeros(T, length(sys.θ₀))
+        u0[end] = zero(T)
     end
 
 
